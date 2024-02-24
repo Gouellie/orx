@@ -127,10 +127,11 @@
 #define orxOBJECT_KZ_CONFIG_SPHERICAL_POSITION  "SphericalPosition"
 #define orxOBJECT_KZ_CONFIG_SPEED               "Speed"
 #define orxOBJECT_KZ_CONFIG_PIVOT               "Pivot"
-#define orxOBJECT_KZ_CONFIG_SIZE                "Size"
 #define orxOBJECT_KZ_CONFIG_ROTATION            "Rotation"
 #define orxOBJECT_KZ_CONFIG_ANGULAR_VELOCITY    "AngularVelocity"
 #define orxOBJECT_KZ_CONFIG_SCALE               "Scale"
+#define orxOBJECT_KZ_CONFIG_ORIGIN              "Origin"
+#define orxOBJECT_KZ_CONFIG_SIZE                "Size"
 #define orxOBJECT_KZ_CONFIG_FX_LIST             "FXList"
 #define orxOBJECT_KZ_CONFIG_FX_RECURSIVE_LIST   "FXRecursiveList"
 #define orxOBJECT_KZ_CONFIG_FX_FREQUENCY        "FXFrequency"
@@ -1312,6 +1313,43 @@ void orxFASTCALL orxObject_CommandGetActiveTime(orxU32 _u32ArgNumber, const orxC
   {
     /* Updates result */
     _pstResult->fValue = orx2F(-1.0f);
+  }
+
+  /* Done! */
+  return;
+}
+
+/** Command: ResetActiveTime
+ */
+void orxFASTCALL orxObject_CommandResetActiveTime(orxU32 _u32ArgNumber, const orxCOMMAND_VAR *_astArgList, orxCOMMAND_VAR *_pstResult)
+{
+  orxOBJECT *pstObject;
+
+  /* Gets object */
+  pstObject = orxOBJECT(orxStructure_Get(_astArgList[0].u64Value));
+
+  /* Valid? */
+  if(pstObject != orxNULL)
+  {
+    /* Recursive? */
+    if((_u32ArgNumber > 1) && (_astArgList[1].bValue != orxFALSE))
+    {
+      /* Resets its active time recursively */
+      orxObject_ResetActiveTimeRecursive(pstObject);
+    }
+    else
+    {
+      /* Resets its active time */
+      orxObject_ResetActiveTime(pstObject);
+    }
+
+    /* Updates result */
+    _pstResult->u64Value = _astArgList[0].u64Value;
+  }
+  else
+  {
+    /* Updates result */
+    _pstResult->u64Value = orxU64_UNDEFINED;
   }
 
   /* Done! */
@@ -3677,6 +3715,8 @@ static orxINLINE void orxObject_RegisterCommands()
 
   /* Command: GetActiveTime */
   orxCOMMAND_REGISTER_CORE_COMMAND(Object, GetActiveTime, "ActiveTime", orxCOMMAND_VAR_TYPE_FLOAT, 1, 0, {"Object", orxCOMMAND_VAR_TYPE_U64});
+  /* Command: ResetActiveTime */
+  orxCOMMAND_REGISTER_CORE_COMMAND(Object, ResetActiveTime, "Object", orxCOMMAND_VAR_TYPE_U64, 1, 1, {"Object", orxCOMMAND_VAR_TYPE_U64}, {"Recursive = false", orxCOMMAND_VAR_TYPE_BOOL});
 
   /* Command: SetLifeTime */
   orxCOMMAND_REGISTER_CORE_COMMAND(Object, SetLifeTime, "Object", orxCOMMAND_VAR_TYPE_U64, 2, 0, {"Object", orxCOMMAND_VAR_TYPE_U64}, {"LifeTime", orxCOMMAND_VAR_TYPE_STRING});
@@ -3908,6 +3948,8 @@ static orxINLINE void orxObject_UnregisterCommands()
 
   /* Command: GetActiveTime */
   orxCOMMAND_UNREGISTER_CORE_COMMAND(Object, GetActiveTime);
+  /* Command: ResetActiveTime */
+  orxCOMMAND_UNREGISTER_CORE_COMMAND(Object, ResetActiveTime);
 
   /* Command: SetLifeTime */
   orxCOMMAND_UNREGISTER_CORE_COMMAND(Object, SetLifeTime);
@@ -4431,8 +4473,12 @@ static orxINLINE orxSTATUS orxObject_DeleteInternal(orxOBJECT *_pstObject, orxBO
       {
         orxU32 i;
 
-        /* Removes parent */
-        orxObject_SetParent(_pstObject, orxNULL);
+        /* Has frame? */
+        if(_pstObject->apstStructureList[orxSTRUCTURE_ID_FRAME] != orxNULL)
+        {
+          /* Removes parent */
+          orxObject_SetParent(_pstObject, orxNULL);
+        }
 
         /* Has children? */
         if(orxStructure_TestFlags(_pstObject, orxOBJECT_KU32_FLAG_HAS_CHILDREN))
@@ -5691,7 +5737,14 @@ orxOBJECT *orxFASTCALL orxObject_CreateFromConfig(const orxSTRING _zConfigID)
           }
         }
 
-        /* *** Size/Pivot *** */
+        /* *** Origin/Size/Pivot *** */
+
+        /* Has origin? */
+        if(orxConfig_GetVector(orxOBJECT_KZ_CONFIG_ORIGIN, &vValue) != orxNULL)
+        {
+          /* Updates object origin */
+          orxObject_SetOrigin(pstResult, &vValue);
+        }
 
         /* Has size? */
         if(orxConfig_GetVector(orxOBJECT_KZ_CONFIG_SIZE, &vValue) != orxNULL)
@@ -5778,53 +5831,37 @@ orxOBJECT *orxFASTCALL orxObject_CreateFromConfig(const orxSTRING _zConfigID)
         orxColor_Set(&stColor, &orxVECTOR_WHITE, orxFLOAT_1);
 
         /* Has color? */
-        if(orxConfig_HasValue(orxOBJECT_KZ_CONFIG_COLOR) != orxFALSE)
+        if(orxConfig_GetColorVector(orxOBJECT_KZ_CONFIG_COLOR, orxCOLORSPACE_COMPONENT, &(stColor.vRGB)) != orxNULL)
         {
-          /* Gets its value? */
-          if(orxConfig_GetColorVector(orxOBJECT_KZ_CONFIG_COLOR, orxCOLORSPACE_COMPONENT, &(stColor.vRGB)) != orxNULL)
-          {
-            /* Normalizes it */
-            orxVector_Mulf(&(stColor.vRGB), &(stColor.vRGB), orxCOLOR_NORMALIZER);
+          /* Normalizes it */
+          orxVector_Mulf(&(stColor.vRGB), &(stColor.vRGB), orxCOLOR_NORMALIZER);
 
-            /* Updates status */
-            bHasColor = orxTRUE;
-          }
+          /* Updates status */
+          bHasColor = orxTRUE;
         }
         /* Has RGB values? */
-        else if(orxConfig_HasValue(orxOBJECT_KZ_CONFIG_RGB) != orxFALSE)
+        else if(orxConfig_GetColorVector(orxOBJECT_KZ_CONFIG_RGB, orxCOLORSPACE_RGB, &(stColor.vRGB)) != orxNULL)
         {
-          /* Gets its value? */
-          if(orxConfig_GetColorVector(orxOBJECT_KZ_CONFIG_RGB, orxCOLORSPACE_RGB, &(stColor.vRGB)) != orxNULL)
-          {
-            /* Updates status */
-            bHasColor = orxTRUE;
-          }
+          /* Updates status */
+          bHasColor = orxTRUE;
         }
         /* Has HSL values? */
-        else if(orxConfig_HasValue(orxOBJECT_KZ_CONFIG_HSL) != orxFALSE)
+        else if(orxConfig_GetColorVector(orxOBJECT_KZ_CONFIG_HSL, orxCOLORSPACE_HSL, &(stColor.vHSL)) != orxNULL)
         {
-          /* Gets its value? */
-          if(orxConfig_GetColorVector(orxOBJECT_KZ_CONFIG_HSL, orxCOLORSPACE_HSL, &(stColor.vHSL)) != orxNULL)
-          {
-            /* Stores its RGB equivalent */
-            orxColor_FromHSLToRGB(&stColor, &stColor);
+          /* Stores its RGB equivalent */
+          orxColor_FromHSLToRGB(&stColor, &stColor);
 
-            /* Updates status */
-            bHasColor = orxTRUE;
-          }
+          /* Updates status */
+          bHasColor = orxTRUE;
         }
         /* Has HSV values? */
-        else if(orxConfig_HasValue(orxOBJECT_KZ_CONFIG_HSV) != orxFALSE)
+        if(orxConfig_GetColorVector(orxOBJECT_KZ_CONFIG_HSV, orxCOLORSPACE_HSV, &(stColor.vHSV)) != orxNULL)
         {
-          /* Gets its value? */
-          if(orxConfig_GetColorVector(orxOBJECT_KZ_CONFIG_HSV, orxCOLORSPACE_HSV, &(stColor.vHSV)) != orxNULL)
-          {
-            /* Stores its RGB equivalent */
-            orxColor_FromHSVToRGB(&stColor, &stColor);
+          /* Stores its RGB equivalent */
+          orxColor_FromHSVToRGB(&stColor, &stColor);
 
-            /* Updates status */
-            bHasColor = orxTRUE;
-          }
+          /* Updates status */
+          bHasColor = orxTRUE;
         }
 
         /* Has alpha? */
@@ -6467,15 +6504,10 @@ orxOBJECT *orxFASTCALL orxObject_CreateFromConfig(const orxSTRING _zConfigID)
         }
 
         /* Should repeat? */
-        if(orxConfig_HasValue(orxOBJECT_KZ_CONFIG_REPEAT) != orxFALSE)
+        if(orxConfig_GetVector(orxOBJECT_KZ_CONFIG_REPEAT, &vValue) != orxNULL)
         {
-          orxVECTOR vRepeat;
-
-          /* Gets its value */
-          orxConfig_GetVector(orxOBJECT_KZ_CONFIG_REPEAT, &vRepeat);
-
           /* Stores it */
-          orxObject_SetRepeat(pstResult, vRepeat.fX, vRepeat.fY);
+          orxObject_SetRepeat(pstResult, vValue.fX, vValue.fY);
         }
 
         /* Has life time? */
@@ -11840,7 +11872,7 @@ orxDISPLAY_BLEND_MODE orxFASTCALL orxObject_GetBlendMode(const orxOBJECT *_pstOb
   return eResult;
 }
 
-/** Sets object literal lifetime.
+/** Sets object's literal lifetime.
  * @param[in]   _pstObject      Concerned object
  * @param[in]   _zLifeTime      Lifetime to set, can be composed of multiple tags, separated by space: anim, child, fx, sound, spawner and track
  * @return      orxSTATUS_SUCCESS / orxSTATUS_FAILURE
@@ -11923,7 +11955,7 @@ orxSTATUS orxFASTCALL orxObject_SetLiteralLifeTime(orxOBJECT *_pstObject, const 
   return eResult;
 }
 
-/** Sets object lifetime.
+/** Sets object's lifetime.
  * @param[in]   _pstObject      Concerned object
  * @param[in]   _fLifeTime      Lifetime to set, negative value to disable it
  * @return      orxSTATUS_SUCCESS / orxSTATUS_FAILURE
@@ -12001,7 +12033,7 @@ orxSTATUS orxFASTCALL orxObject_SetLifeTime(orxOBJECT *_pstObject, orxFLOAT _fLi
   return eResult;
 }
 
-/** Gets object lifetime.
+/** Gets object's lifetime.
  * @param[in]   _pstObject      Concerned object
  * @return      Lifetime / negative value if none
  */
@@ -12020,7 +12052,7 @@ orxFLOAT orxFASTCALL orxObject_GetLifeTime(const orxOBJECT *_pstObject)
   return fResult;
 }
 
-/** Gets object active time, i.e. the amount of time that the object has been alive taking into account
+/** Gets object's active time, i.e. the amount of time that the object has been alive taking into account.
  * the object's clock multiplier and object's periods of pause.
  * @param[in]   _pstObject      Concerned object
  * @return      Active time
@@ -12040,10 +12072,57 @@ orxFLOAT orxFASTCALL orxObject_GetActiveTime(const orxOBJECT *_pstObject)
   return fResult;
 }
 
+/** Resets an object's active time.
+ * @param[in]   _pstObject      Concerned object
+ * @return      orxSTATUS_SUCCESS / orxSTATUS_FAILURE
+ */
+orxSTATUS orxFASTCALL orxObject_ResetActiveTime(orxOBJECT *_pstObject)
+{
+  orxSTATUS eResult = orxSTATUS_SUCCESS;
+
+  /* Checks */
+  orxASSERT(sstObject.u32Flags & orxOBJECT_KU32_STATIC_FLAG_READY);
+  orxSTRUCTURE_ASSERT(_pstObject);
+
+  /* Resets object's active time result */
+  _pstObject->fActiveTime = orxFLOAT_0;
+
+  /* Done! */
+  return eResult;
+}
+
+/** Resets an object's and its owned children's active time.
+ * @param[in]   _pstObject      Concerned object
+ * @return      orxSTATUS_SUCCESS / orxSTATUS_FAILURE
+ */
+void orxFASTCALL orxObject_ResetActiveTimeRecursive(orxOBJECT *_pstObject)
+{
+  orxOBJECT *pstChild;
+
+  /* Checks */
+  orxASSERT(sstObject.u32Flags & orxOBJECT_KU32_STATIC_FLAG_READY);
+  orxSTRUCTURE_ASSERT(_pstObject);
+
+  /* Updates object */
+  orxObject_ResetActiveTime(_pstObject);
+
+  /* For all its owned children */
+  for(pstChild = orxObject_GetOwnedChild(_pstObject);
+      pstChild != orxNULL;
+      pstChild = orxObject_GetOwnedSibling(pstChild))
+  {
+    /* Updates it */
+    orxObject_ResetActiveTimeRecursive(pstChild);
+  }
+
+  /* Done! */
+  return;
+}
+
 /** Gets default group ID.
  * @return      Default group ID
  */
-extern orxDLLAPI orxSTRINGID orxFASTCALL orxObject_GetDefaultGroupID()
+orxSTRINGID orxFASTCALL orxObject_GetDefaultGroupID()
 {
   orxSTRINGID stResult;
 
@@ -12061,7 +12140,7 @@ extern orxDLLAPI orxSTRINGID orxFASTCALL orxObject_GetDefaultGroupID()
  * @param[in]   _pstObject      Concerned object
  * @return      Object's group ID. This is the string ID (see orxString_GetFromID()) of the object's group name.
  */
-extern orxDLLAPI orxSTRINGID orxFASTCALL orxObject_GetGroupID(const orxOBJECT *_pstObject)
+orxSTRINGID orxFASTCALL orxObject_GetGroupID(const orxOBJECT *_pstObject)
 {
   orxSTRINGID stResult;
 
@@ -12081,7 +12160,7 @@ extern orxDLLAPI orxSTRINGID orxFASTCALL orxObject_GetGroupID(const orxOBJECT *_
  * @param[in]   _stGroupID      Group ID to set. This is the string ID (see orxString_GetID()) of the object's group name.
  * @return      orxSTATUS_SUCCESS / orxSTATUS_FAILURE
  */
-extern orxDLLAPI orxSTATUS orxFASTCALL orxObject_SetGroupID(orxOBJECT *_pstObject, orxSTRINGID _stGroupID)
+orxSTATUS orxFASTCALL orxObject_SetGroupID(orxOBJECT *_pstObject, orxSTRINGID _stGroupID)
 {
   orxOBJECT_LISTS **ppstBucket;
   orxOBJECT_LISTS  *pstGroupLists;
@@ -12158,7 +12237,7 @@ orxOBJECT_MAKE_RECURSIVE(SetGroupID, orxSTRINGID);
  * @param[in]   _stGroupID      Group ID to consider, orxSTRINGID_UNDEFINED for all
  * @return      orxOBJECT / orxNULL
  */
-extern orxDLLAPI orxOBJECT *orxFASTCALL orxObject_GetNext(const orxOBJECT *_pstObject, orxSTRINGID _stGroupID)
+orxOBJECT *orxFASTCALL orxObject_GetNext(const orxOBJECT *_pstObject, orxSTRINGID _stGroupID)
 {
   orxOBJECT *pstResult;
 
