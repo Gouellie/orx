@@ -1,0 +1,88 @@
+//! Includes
+
+#ifndef _orxCONTAINER_H_
+#define _orxCONTAINER_H_
+
+#include "orx.h"
+
+
+//! Prototypes
+
+void                                        orxContainer_Init();
+void                                        orxContainer_Exit();
+orxSTATUS                                   orxContainer_Set(orxOBJECT* _pstObject);
+
+
+#ifdef orxCONTAINER_IMPL
+
+static void orxContainer_CommandSet(orxU32 _u32ArgNumber, const orxCOMMAND_VAR* _astArgList, orxCOMMAND_VAR* _pstResult)
+{
+  orxOBJECT* pstObject;
+
+  // Gets object
+  pstObject = orxOBJECT(orxStructure_Get(_astArgList[0].u64Value));
+
+  // Valid?
+  if (pstObject != orxNULL)
+  {
+    // Register the object
+    if (orxContainer_Set(pstObject) != orxSTATUS_FAILURE)
+    {
+      // Update result
+      _pstResult->u64Value = _astArgList[0].u64Value;
+    }
+  }
+}
+
+static void orxContainer_Update(const orxCLOCK_INFO* _pstClockInfo, void* _pContext)
+{
+
+}
+
+void orxContainer_Init()
+{
+  // Register clock callback to render inspector windows on each frame
+  orxClock_Register(orxClock_Get(orxCLOCK_KZ_CORE), orxContainer_Update, orxNULL, orxMODULE_ID_MAIN, orxCLOCK_PRIORITY_NORMAL);
+
+  // Register commands
+  orxCOMMAND_REGISTER_CORE_COMMAND(Container, Set, "GUID", orxCOMMAND_VAR_TYPE_U64, 1, 0, { "Object", orxCOMMAND_VAR_TYPE_U64 });
+
+  orxLOG("orxContainer_Init");
+  // Done!
+  return;
+}
+
+void orxContainer_Exit()
+{
+  // Unregister commands
+  orxCOMMAND_UNREGISTER_CORE_COMMAND(Container, Set);
+
+  // Unregister clock callback
+  orxClock_Unregister(orxClock_Get(orxCLOCK_KZ_CORE), orxContainer_Update);
+
+  orxLOG("orxContainer_Exit");
+  // Done!
+  return;
+}
+
+orxSTATUS orxContainer_Set(orxOBJECT* _pstObject)
+{
+  orxSTATUS eResult = orxSTATUS_FAILURE;
+
+  // Valid?
+  if (_pstObject != orxNULL)
+  {
+    const orxSTRING name = orxObject_GetName(_pstObject);
+    orxLOG("Object Set : %s", name);
+    // Update status
+    eResult = orxSTATUS_SUCCESS;
+  }
+
+  // Done!
+  return eResult;
+}
+
+#endif // orxCONTAINER_IMPL
+
+#endif // _orxCONTAINER_H_
+

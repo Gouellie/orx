@@ -46,6 +46,11 @@
 #define orxINSPECTOR_IMPL
 #include "orxInspector.h"
 #undef orxINSPECTOR_IMPL]
+[+container
+
+#define orxCONTAINER_IMPL
+#include "orxContainer.h"
+#undef orxCONTAINER_IMPL]
 [+remote
 
 #define orxREMOTE_IMPL
@@ -91,6 +96,10 @@ void InitExtensions()
   // Initialize inspector
   orxInspector_Init();
 ]
+[+container
+  // Initialize container
+  orxContainer_Init();
+]
 }
 
 void ExitExtensions()
@@ -134,6 +143,10 @@ void ExitExtensions()
 [+bundle
   // Exit from bundle support
   orxBundle_Exit();
+]
+[+container
+  // Initialize container
+  orxContainer_Exit();
 ]
 }
 
