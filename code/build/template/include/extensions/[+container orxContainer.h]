@@ -21,7 +21,6 @@ orxSTATUS                                   orxContainer_Set(orxOBJECT* _pstObje
 /** Config defines
  */
 #define orxCONTAINER_KZ_CONFIG_SECTION                  "Containers"
-#define orxCONTAINER_KZ_CONFIG_RUNTIME                  "ContainersRuntime"
 
 #define orxCONTAINER_KZ_CONFIG_SHOW_DEBUG               "ShowDebug"
 #define orxCONTAINER_KZ_CONFIG_CONTAINER_NAME           "Container"
@@ -108,12 +107,12 @@ static void orxContainer_DrawContainerName(orxOBJECT* _pstObject, orxVIEWPORT* _
       orxViewport_GetRelativeSize(_pstViewport, &fWidth, &fHeight);
 
       /* Inits transform's scale */
-      stTextTransform.fScaleX = (orx2F(2.0f) * fWidth);
-      stTextTransform.fScaleY = (orx2F(2.0f) * fHeight);
+      stTextTransform.fScaleX = (orx2F(1.0f) * fWidth);
+      stTextTransform.fScaleY = (orx2F(1.0f) * fHeight);
 
       /* Inits transform's destination */
-      stTextTransform.fDstX = _vOrigin.fX + orx2F(10.0f);
-      stTextTransform.fDstY = _vOrigin.fY + orx2F(10.0f);
+      stTextTransform.fDstX = _vOrigin.fX + orx2F(5.0f);
+      stTextTransform.fDstY = _vOrigin.fY + orx2F(5.0f);
 
       /* Writes string */
       orxString_NPrint(acBuffer, sizeof(acBuffer), orxObject_GetName(_pstObject));
@@ -137,8 +136,6 @@ static void orxContainer_DrawBoundingBox(orxOBJECT* _pstObject)
   orxVECTOR vOrigin;
   /* Gets origin */
   orxVector_Sub(&vOrigin, &(stBoundingBox.vPosition), &(stBoundingBox.vPivot));
-
-  orxRGBA stColor = orx2RGBA(255, 0, 0, 255);
 
   orxVIEWPORT* pstViewport;
 
@@ -186,13 +183,13 @@ static void orxContainer_DrawBoundingBox(orxOBJECT* _pstObject)
           v1, v2, v3, v4
         };
 
-        for (int i = 0; i < 4; i++) {
+        for (i = 0; i < 4; i++) {
           /* Stores its screen position */
           orxRender_GetScreenPosition(&avVertexList[i], pstViewport, &(avVertexList[i]));
         }
 
         /* Draws polygon */
-        orxDisplay_DrawPolygon(avVertexList, (orxS32)4, stColor, orxFALSE);
+        orxDisplay_DrawPolygon(avVertexList, (orxS32)4, orxCONTAINER_KST_DEFAULT_COLOR, orxFALSE);
 
         /* Draws name */
         orxContainer_DrawContainerName(_pstObject, pstViewport, avVertexList[0]);
@@ -201,10 +198,21 @@ static void orxContainer_DrawBoundingBox(orxOBJECT* _pstObject)
   }
 }
 
+static void orxContainer_FitChildInRect(orxOBJECT* _pstObject, const orxOBOX& p_rect)
+{
+  // Done!
+  return;
+}
+
 static void orxContainer_Update(const orxCLOCK_INFO* _pstClockInfo, void* _pContext)
 {
   // Done!
   return;
+}
+
+static void orxContainer_Ordered()
+{
+
 }
 
 static orxSTATUS orxFASTCALL orxContainer_EventHandler(const orxEVENT *_pstEvent)
@@ -223,26 +231,25 @@ static orxSTATUS orxFASTCALL orxContainer_EventHandler(const orxEVENT *_pstEvent
     /* Show debug? */
     if(orxConfig_GetBool(orxCONTAINER_KZ_CONFIG_SHOW_DEBUG) != orxFALSE)
     {
-      // Inspect all registered objects
-      orxConfig_PushSection(orxCONTAINER_KZ_CONFIG_RUNTIME);
-      for (orxU32 u32KeyIndex = 0, u32KeyCount = orxConfig_GetKeyCount(); u32KeyIndex < u32KeyCount; u32KeyIndex++)
+      orxOBJECT** ppstObject;
+      /* For all containers objects */
+      for (ppstObject = (orxOBJECT**)orxBank_GetNext(sstObject.pstContainerBank, orxNULL);
+        ppstObject != orxNULL;
+        ppstObject = (orxOBJECT**)orxBank_GetNext(sstObject.pstContainerBank, ppstObject))
       {
-        const orxSTRING zKey = orxConfig_GetKey(u32KeyIndex);
-        orxU64 u64GUID = orxU64_UNDEFINED;
-        if (orxString_ToU64(zKey, &u64GUID, orxNULL) != orxSTATUS_FAILURE)
+        /* Still valid? */
+        if (orxOBJECT(*ppstObject) != orxNULL)
         {
-          orxOBJECT* pstObject = orxOBJECT(orxStructure_Get(u64GUID));
-          if (pstObject != orxNULL)
-          {
-            orxContainer_DrawBoundingBox(pstObject);
-          }
-          else
-          {
-            orxConfig_ClearValue(zKey);
-          }
+          /* Updates it */
+          orxContainer_DrawBoundingBox(*ppstObject);
+        }
+        else
+        {
+          /* Free */
+          orxBank_Free(sstObject.pstContainerBank, ppstObject);
+          ppstObject = orxNULL;
         }
       }
-      orxConfig_PopSection();
     }
 
     /* Pops config section */
@@ -264,7 +271,7 @@ void orxContainer_Init()
   if (eResult != orxSTATUS_FAILURE)
   {
     /* Creates banks */
-    // sstObject.pstContainerBank = orxBank_Create(orxCONTAINER_KU32_BANK_SIZE, sizeof(orxOBJECT*), orxBANK_KU32_FLAG_NONE, orxMEMORY_TYPE_MAIN);
+    sstObject.pstContainerBank = orxBank_Create(orxCONTAINER_KU32_BANK_SIZE, sizeof(orxOBJECT*), orxBANK_KU32_FLAG_NONE, orxMEMORY_TYPE_MAIN);
   }
 
   // Register commands
@@ -286,11 +293,8 @@ void orxContainer_Exit()
   // Unregister clock callback
   orxClock_Unregister(orxClock_Get(orxCLOCK_KZ_CORE), orxContainer_Update);
 
-  // Clean runtime config section
-  orxConfig_ClearSection(orxCONTAINER_KZ_CONFIG_RUNTIME);
-
   /* Deletes banks */
-  // orxBank_Delete(sstObject.pstContainerBank);
+   orxBank_Delete(sstObject.pstContainerBank);
 
   // Done!
   return;
@@ -303,8 +307,11 @@ orxSTATUS orxContainer_Set(orxOBJECT* _pstObject)
   // Valid?
   if (_pstObject != orxNULL)
   {
-    orxConfig_PushSection(orxCONTAINER_KZ_CONFIG_RUNTIME);
-    orxConfig_SetBool(orxCONTAINER_PrintGUID(_pstObject), orxTRUE);
+    orxOBJECT** ppstObject;
+    /* Adds it to the bank */
+    ppstObject = (orxOBJECT**)orxBank_Allocate(sstObject.pstContainerBank);
+    orxASSERT(ppstObject != orxNULL);
+    *ppstObject = _pstObject;
 
     // Update status
     eResult = orxSTATUS_SUCCESS;
