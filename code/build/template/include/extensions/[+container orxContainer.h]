@@ -225,17 +225,18 @@ static int orxContainer_GetObjectDepth(const orxOBJECT* _pstObject)
   return uDepth;
 }
 
-static int orxContainer_CompareObjectDepth(const void* a, const void* b)
+static int orxContainer_CompareObjectDepth(const void* _psta, const void* _pstb)
 {
   orxU8 uDepth_a, uDepth_b;
-  const orxOBJECT* pstObject_a = ((const orxOBJECT*)a);
-  const orxOBJECT* pstObject_b = ((const orxOBJECT*)b);
 
-  if (orxOBJECT(pstObject_a) == orxNULL || orxOBJECT(pstObject_b) == orxNULL)
+  const orxOBJECT* psta = (const orxOBJECT*)_psta;
+  const orxOBJECT* pstb = (const orxOBJECT*)_pstb;
+
+  if (orxOBJECT(_psta) == orxNULL || orxOBJECT(pstb) == orxNULL)
     return 0;
 
-  uDepth_a = orxContainer_GetObjectDepth(pstObject_a);
-  uDepth_b = orxContainer_GetObjectDepth(pstObject_b);
+  uDepth_a = orxContainer_GetObjectDepth(psta);
+  uDepth_b = orxContainer_GetObjectDepth(pstb);
 
   if (uDepth_a < uDepth_b)
     return -1;
@@ -261,10 +262,10 @@ static orxSTATUS orxFASTCALL orxContainer_EventHandler(const orxEVENT *_pstEvent
     /* Show debug? */
     if(orxConfig_GetBool(orxCONTAINER_KZ_CONFIG_SHOW_DEBUG) != orxFALSE)
     {
-      orxS32     i, listSize = 0;
-      orxOBJECT* listSorted[orxCONTAINER_KU32_BANK_SIZE]{};
-
+      orxS32      i, listSize = 0;
+      orxOBJECT*  listSorted[orxCONTAINER_KU32_BANK_SIZE]{};
       orxOBJECT** ppstObject;
+
       /* For all containers objects */
       for (ppstObject = (orxOBJECT**)orxBank_GetNext(sstObject.pstContainerBank, orxNULL);
         ppstObject != orxNULL;
