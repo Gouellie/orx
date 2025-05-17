@@ -14,8 +14,9 @@ orxSTATUS                                   orxContainer_Set(orxOBJECT* _pstObje
 
 /** Misc defines
  */
-#define orxCONTAINER_KU32_BANK_SIZE                2048
-#define orxCONTAINER_KU32_TEXT_BUFFER_SIZE         1024
+#define orxCONTAINER_KU32_BANK_SIZE                     2048
+#define orxCONTAINER_KU32_TEXT_BUFFER_SIZE              1024
+#define orxCONTAINER_KST_DEFAULT_COLOR                  orx2RGBA(255, 0, 0, 255)
 
 /** Config defines
  */
@@ -77,6 +78,55 @@ static void orxContainer_CommandSet(orxU32 _u32ArgNumber, const orxCOMMAND_VAR* 
   }
 }
 
+static void orxContainer_DrawContainerName(orxOBJECT* _pstObject, orxVIEWPORT* _pstViewport, orxVECTOR _vOrigin)
+{
+  const orxFONT* pstFont;
+
+  /* Gets default font */
+  pstFont = orxFont_Get(orxFONT_KZ_DEFAULT_FONT_NAME);
+
+  /* Valid? */
+  if (pstFont != orxNULL)
+  {
+    orxBITMAP* pstBitmap;
+    orxDISPLAY_TRANSFORM  stTextTransform;
+    orxCHAR               acBuffer[32];
+
+    /* Gets its bitmap */
+    pstBitmap = orxTexture_GetBitmap(orxFont_GetTexture(pstFont));
+
+    /* Clears text transform */
+    orxMemory_Zero(&stTextTransform, sizeof(orxDISPLAY_TRANSFORM));
+
+    /* Valid? */
+    if (_pstViewport != orxNULL)
+    {
+      //orxAABOX  stBox;
+      orxFLOAT  fWidth, fHeight;
+
+      /* Gets its box & size */
+      orxViewport_GetRelativeSize(_pstViewport, &fWidth, &fHeight);
+
+      /* Inits transform's scale */
+      stTextTransform.fScaleX = (orx2F(2.0f) * fWidth);
+      stTextTransform.fScaleY = (orx2F(2.0f) * fHeight);
+
+      /* Inits transform's destination */
+      stTextTransform.fDstX = _vOrigin.fX + orx2F(10.0f);
+      stTextTransform.fDstY = _vOrigin.fY + orx2F(10.0f);
+
+      /* Writes string */
+      orxString_NPrint(acBuffer, sizeof(acBuffer), orxObject_GetName(_pstObject));
+
+      /* Displays it */
+      orxDisplay_TransformText(acBuffer, pstBitmap, orxFont_GetMap(pstFont), &stTextTransform, orxCONTAINER_KST_DEFAULT_COLOR, orxDISPLAY_SMOOTHING_OFF, orxDISPLAY_BLEND_MODE_ALPHA);
+    }
+  }
+
+  /* Done! */
+  return;
+}
+
 static void orxContainer_DrawBoundingBox(orxOBJECT* _pstObject)
 {
   orxVECTOR vWorldPosition;
@@ -87,7 +137,6 @@ static void orxContainer_DrawBoundingBox(orxOBJECT* _pstObject)
   orxVECTOR vOrigin;
   /* Gets origin */
   orxVector_Sub(&vOrigin, &(stBoundingBox.vPosition), &(stBoundingBox.vPivot));
-
 
   orxRGBA stColor = orx2RGBA(255, 0, 0, 255);
 
@@ -144,6 +193,9 @@ static void orxContainer_DrawBoundingBox(orxOBJECT* _pstObject)
 
         /* Draws polygon */
         orxDisplay_DrawPolygon(avVertexList, (orxS32)4, stColor, orxFALSE);
+
+        /* Draws name */
+        orxContainer_DrawContainerName(_pstObject, pstViewport, avVertexList[0]);
       }
     }
   }
@@ -265,4 +317,3 @@ orxSTATUS orxContainer_Set(orxOBJECT* _pstObject)
 #endif // orxCONTAINER_IMPL
 
 #endif // _orxCONTAINER_H_
-
