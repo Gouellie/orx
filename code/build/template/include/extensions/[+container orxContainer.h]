@@ -14,7 +14,7 @@ orxSTATUS                                   orxContainer_Set(orxOBJECT* _pstObje
 
 /** Misc defines
  */
-#define orxCONTAINER_KU32_BANK_SIZE                     2048
+#define orxCONTAINER_KU32_BANK_SIZE                     64
 #define orxCONTAINER_KU32_TEXT_BUFFER_SIZE              1024
 #define orxCONTAINER_KST_DEFAULT_COLOR                  orx2RGBA(255, 0, 0, 255)
 
@@ -210,9 +210,39 @@ static void orxContainer_Update(const orxCLOCK_INFO* _pstClockInfo, void* _pCont
   return;
 }
 
-static void orxContainer_Ordered()
+static int orxContainer_GetObjectDepth(const orxOBJECT* _pstObject)
 {
+  orxU8 uDepth = 0;
+  orxSTRUCTURE* pstOwner;
 
+  for (pstOwner = orxObject_GetOwner(_pstObject);
+    pstOwner != orxNULL;
+    pstOwner = orxStructure_GetOwner(pstOwner))
+  {
+    uDepth++;
+  }
+
+  return uDepth;
+}
+
+static int orxContainer_CompareObjectDepth(const void* a, const void* b)
+{
+  orxU8 uDepth_a, uDepth_b;
+  const orxOBJECT* pstObject_a = ((const orxOBJECT*)a);
+  const orxOBJECT* pstObject_b = ((const orxOBJECT*)b);
+
+  if (orxOBJECT(pstObject_a) == orxNULL || orxOBJECT(pstObject_b) == orxNULL)
+    return 0;
+
+  uDepth_a = orxContainer_GetObjectDepth(pstObject_a);
+  uDepth_b = orxContainer_GetObjectDepth(pstObject_b);
+
+  if (uDepth_a < uDepth_b)
+    return -1;
+  if (uDepth_a > uDepth_b)
+    return 1;
+
+  return 0;
 }
 
 static orxSTATUS orxFASTCALL orxContainer_EventHandler(const orxEVENT *_pstEvent)
@@ -231,6 +261,9 @@ static orxSTATUS orxFASTCALL orxContainer_EventHandler(const orxEVENT *_pstEvent
     /* Show debug? */
     if(orxConfig_GetBool(orxCONTAINER_KZ_CONFIG_SHOW_DEBUG) != orxFALSE)
     {
+      orxS32     i, listSize = 0;
+      orxOBJECT* listSorted[orxCONTAINER_KU32_BANK_SIZE]{};
+
       orxOBJECT** ppstObject;
       /* For all containers objects */
       for (ppstObject = (orxOBJECT**)orxBank_GetNext(sstObject.pstContainerBank, orxNULL);
@@ -240,8 +273,8 @@ static orxSTATUS orxFASTCALL orxContainer_EventHandler(const orxEVENT *_pstEvent
         /* Still valid? */
         if (orxOBJECT(*ppstObject) != orxNULL)
         {
-          /* Updates it */
-          orxContainer_DrawBoundingBox(*ppstObject);
+          listSorted[listSize] = (*ppstObject);
+          listSize++;
         }
         else
         {
@@ -249,6 +282,18 @@ static orxSTATUS orxFASTCALL orxContainer_EventHandler(const orxEVENT *_pstEvent
           orxBank_Free(sstObject.pstContainerBank, ppstObject);
           ppstObject = orxNULL;
         }
+      }
+
+      if (listSize > 1)
+      {
+        /* Sorted by depth */
+        qsort(listSorted, listSize, sizeof(orxOBJECT*), orxContainer_CompareObjectDepth);
+      }
+
+      for (i = 0; i < listSize; i++)
+      {
+        /* Updates it */
+        orxContainer_DrawBoundingBox(listSorted[i]);
       }
     }
 
