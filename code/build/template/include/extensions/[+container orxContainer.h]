@@ -77,19 +77,76 @@ static void orxContainer_CommandSet(orxU32 _u32ArgNumber, const orxCOMMAND_VAR* 
   }
 }
 
-static void orxContainer_ShowObject(orxOBJECT* _pstObject)
+static void orxContainer_DrawBoundingBox(orxOBJECT* _pstObject)
 {
-  orxVECTOR pos;
-  orxOBOX obox;
-  orxObject_GetWorldPosition(_pstObject, &pos);
-  orxObject_GetBoundingBox(_pstObject, &obox);
+  orxVECTOR vWorldPosition;
+  orxOBOX stBoundingBox;
+  orxObject_GetWorldPosition(_pstObject, &vWorldPosition);
+  orxObject_GetBoundingBox(_pstObject, &stBoundingBox);
 
-  orxVIEWPORT* ptsMainCamera = orxViewport_Get("MainViewport");
-  orxRender_GetScreenPosition(&pos, ptsMainCamera, &pos);
-  obox.vPosition = pos;
+  orxVECTOR vOrigin;
+  /* Gets origin */
+  orxVector_Sub(&vOrigin, &(stBoundingBox.vPosition), &(stBoundingBox.vPivot));
 
-  orxRGBA red = {255, 0, 0, 255};
-  orxDisplay_DrawOBox(&obox, red, orxFALSE);
+
+  orxRGBA stColor = orx2RGBA(255, 0, 0, 255);
+
+  orxVIEWPORT* pstViewport;
+
+  /* For all viewports */
+  for (pstViewport = orxVIEWPORT(orxStructure_GetFirst(orxSTRUCTURE_ID_VIEWPORT));
+    pstViewport != orxNULL;
+    pstViewport = orxVIEWPORT(orxStructure_GetNext(pstViewport)))
+  {
+    /* Is enabled and supports debug? */
+    if ((orxViewport_IsEnabled(pstViewport) != orxFALSE)
+      && (!orxStructure_GetFlags(pstViewport, orxVIEWPORT_KU32_FLAG_NO_DEBUG)))
+    {
+      orxCAMERA* pstCamera;
+
+      /* Gets viewport camera */
+      pstCamera = orxViewport_GetCamera(pstViewport);
+
+      /* Valid? */
+      if (pstCamera != orxNULL)
+      {
+        orxAABOX    stFrustum;
+        orxVECTOR   vCameraPosition;
+        orxFLOAT    fZ;
+        orxS32      i;
+
+        /* Gets camera position */
+        orxFrame_GetPosition(orxCamera_GetFrame(pstCamera), orxFRAME_SPACE_GLOBAL, &vCameraPosition);
+
+        /* Gets its frustum */
+        orxCamera_GetFrustum(pstCamera, &stFrustum);
+
+        /* Stores its Z */
+        fZ = stFrustum.vTL.fZ + vCameraPosition.fZ;
+
+        orxVECTOR v1, v2, v3, v4;
+
+        /* Sets it */
+        orxVector_Set(&v1, (vOrigin.fX), (vOrigin.fY), fZ);
+        orxVector_Set(&v2, (vOrigin.fX + stBoundingBox.vX.fX), (vOrigin.fY + stBoundingBox.vX.fY), fZ);
+        orxVector_Set(&v3, (vOrigin.fX + stBoundingBox.vX.fX + stBoundingBox.vY.fX), (vOrigin.fY + stBoundingBox.vX.fY + stBoundingBox.vY.fY), fZ);
+        orxVector_Set(&v4, (vOrigin.fX + stBoundingBox.vY.fX), (vOrigin.fY + stBoundingBox.vY.fY), fZ);
+
+        orxVECTOR avVertexList[] =
+        {
+          v1, v2, v3, v4
+        };
+
+        for (int i = 0; i < 4; i++) {
+          /* Stores its screen position */
+          orxRender_GetScreenPosition(&avVertexList[i], pstViewport, &(avVertexList[i]));
+        }
+
+        /* Draws polygon */
+        orxDisplay_DrawPolygon(avVertexList, (orxS32)4, stColor, orxFALSE);
+      }
+    }
+  }
 }
 
 static void orxContainer_Update(const orxCLOCK_INFO* _pstClockInfo, void* _pContext)
@@ -125,7 +182,7 @@ static orxSTATUS orxFASTCALL orxContainer_EventHandler(const orxEVENT *_pstEvent
           orxOBJECT* pstObject = orxOBJECT(orxStructure_Get(u64GUID));
           if (pstObject != orxNULL)
           {
-            orxContainer_ShowObject(pstObject);
+            orxContainer_DrawBoundingBox(pstObject);
           }
           else
           {
