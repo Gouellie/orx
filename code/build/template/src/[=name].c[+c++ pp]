@@ -153,8 +153,7 @@ void [!name]::BindObjects()
   BindObject(Object);
 [+container
   // Bind the Container class
-  BindObject(orxContainerObject);
-]
+  BindObject(orxContainerObject);]
 }
 ]
 /** Bootstrap function, it is called before config is initialized, allowing for early resource storage definitions
