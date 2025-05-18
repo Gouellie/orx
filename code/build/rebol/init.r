@@ -11,7 +11,7 @@ params: compose/deep [
   bundle      {Automatic resource encryption & packaging}                                       +         []
   cheat       {Secret pass/cheat code support}                                                  -         []
   c++         {Create a C++ project instead of a C one}                                         +         []
-  container   {Adding Container property}                                                       -         []
+  container   {Adding Container property}                                                       -         [+scroll]
   imgui       {Dear ImGui (GUI) support (https://github.com/ocornut/imgui)}                     -         [+c++]
   inspector   {Object debug GUI inspector}                                                      -         [+imgui]
   mod         {Audio MOD (Amiga), XM & S3M support}                                             -         []

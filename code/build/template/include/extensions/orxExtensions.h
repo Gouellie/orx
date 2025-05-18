@@ -49,7 +49,7 @@
 [+container
 
 #define orxCONTAINER_IMPL
-#include "orxContainer.h"
+#include "container/orxContainer.h"
 #undef orxCONTAINER_IMPL]
 [+remote
 
