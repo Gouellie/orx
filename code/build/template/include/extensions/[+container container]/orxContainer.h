@@ -4,17 +4,16 @@
 #define _orxCONTAINER_H_
 
 #include "orx.h"
+#include "orxContainerBank.h"
 #include "orxContainerObject.h"
 
 //! Prototypes
 
 void                                        orxContainer_Init();
 void                                        orxContainer_Exit();
-orxSTATUS                                   orxContainer_Set(orxOBJECT* _pstObject);
 
 /** Misc defines
  */
-#define orxCONTAINER_KU32_BANK_SIZE                     64
 #define orxCONTAINER_KU32_TEXT_BUFFER_SIZE              1024
 #define orxCONTAINER_KST_DEFAULT_COLOR                  orx2RGBA(255, 0, 0, 255)
 
@@ -25,22 +24,9 @@ orxSTATUS                                   orxContainer_Set(orxOBJECT* _pstObje
 #define orxCONTAINER_KZ_CONFIG_SHOW_DEBUG               "ShowDebug"
 #define orxCONTAINER_KZ_CONFIG_CONTAINER_NAME           "Container"
 
-
- /** Static structure
-  */
-typedef struct __orxCONTAINER_STATIC_t
-{
-  orxBANK* pstContainerBank;               /**< Container bank */
-
-} orxCONTAINER_STATIC
-;
 /***************************************************************************
  * Static variables                                                        *
  ***************************************************************************/
-
- /** Static data
-  */
-static orxCONTAINER_STATIC sstObject;
 
 //! Helpers
 
@@ -57,25 +43,6 @@ static const orxSTRING orxCONTAINER_PrintGUID(const orxOBJECT* _pstObject, const
 }
 
 #ifdef orxCONTAINER_IMPL
-
-static void orxContainer_CommandSet(orxU32 _u32ArgNumber, const orxCOMMAND_VAR* _astArgList, orxCOMMAND_VAR* _pstResult)
-{
-  orxOBJECT* pstObject;
-
-  // Gets object
-  pstObject = orxOBJECT(orxStructure_Get(_astArgList[0].u64Value));
-
-  // Valid?
-  if (pstObject != orxNULL)
-  {
-    // Register the object
-    if (orxContainer_Set(pstObject) != orxSTATUS_FAILURE)
-    {
-      // Update result
-      _pstResult->u64Value = _astArgList[0].u64Value;
-    }
-  }
-}
 
 static void orxContainer_DrawContainerName(orxOBJECT* _pstObject, orxVIEWPORT* _pstViewport, orxVECTOR _vOrigin)
 {
@@ -274,6 +241,9 @@ static orxSTATUS orxFASTCALL orxContainer_EventHandler(const orxEVENT *_pstEvent
         /* Still valid? */
         if (orxOBJECT(*ppstObject) != orxNULL)
         {
+          /* For future ref */
+          //orxContainerObject* poBlockObject = (orxContainerObject*)orxObject_GetUserData(*ppstObject);
+
           listSorted[listSize] = (*ppstObject);
           listSize++;
         }
@@ -320,9 +290,6 @@ void orxContainer_Init()
     sstObject.pstContainerBank = orxBank_Create(orxCONTAINER_KU32_BANK_SIZE, sizeof(orxOBJECT*), orxBANK_KU32_FLAG_NONE, orxMEMORY_TYPE_MAIN);
   }
 
-  // Register commands
-  orxCOMMAND_REGISTER_CORE_COMMAND(Container, Set, "GUID", orxCOMMAND_VAR_TYPE_U64, 1, 0, { "Object", orxCOMMAND_VAR_TYPE_U64 });
-
   /* Adds event handler */
   orxEvent_AddHandler(orxEVENT_TYPE_RENDER, orxContainer_EventHandler);
   orxEvent_SetHandlerIDFlags(orxContainer_EventHandler, orxEVENT_TYPE_RENDER, orxNULL, orxEVENT_GET_FLAG(orxRENDER_EVENT_STOP), orxEVENT_KU32_MASK_ID_ALL);
@@ -333,9 +300,6 @@ void orxContainer_Init()
 
 void orxContainer_Exit()
 {
-  // Unregister commands
-  orxCOMMAND_UNREGISTER_CORE_COMMAND(Container, Set);
-
   // Unregister clock callback
   orxClock_Unregister(orxClock_Get(orxCLOCK_KZ_CORE), orxContainer_Update);
 
@@ -344,27 +308,6 @@ void orxContainer_Exit()
 
   // Done!
   return;
-}
-
-orxSTATUS orxContainer_Set(orxOBJECT* _pstObject)
-{
-  orxSTATUS eResult = orxSTATUS_FAILURE;
-
-  // Valid?
-  if (_pstObject != orxNULL)
-  {
-    orxOBJECT** ppstObject;
-    /* Adds it to the bank */
-    ppstObject = (orxOBJECT**)orxBank_Allocate(sstObject.pstContainerBank);
-    orxASSERT(ppstObject != orxNULL);
-    *ppstObject = _pstObject;
-
-    // Update status
-    eResult = orxSTATUS_SUCCESS;
-  }
-
-  // Done!
-  return eResult;
 }
 
 #endif // orxCONTAINER_IMPL

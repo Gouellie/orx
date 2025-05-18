@@ -7,6 +7,7 @@
 #define _ORXCONTAINEROBJECT_H_
 
 #include "[name].h"
+#include "orxContainerBank.h"
 
 //! orxContainerObject class
 class orxContainerObject : public ScrollObject
@@ -31,7 +32,7 @@ private:
 
 void orxContainerObject::OnCreate()
 {
-
+  orxContainerBank_RegisterContainer(GetOrxObject());
 }
 
 void orxContainerObject::OnDelete()
