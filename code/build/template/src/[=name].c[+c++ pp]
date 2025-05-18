@@ -153,7 +153,7 @@ void [!name]::BindObjects()
   BindObject(Object);
 [+container
   // Bind the Container class
-  // BindObject(Container);
+  BindObject(orxContainerObject);
 ]
 }
 ]

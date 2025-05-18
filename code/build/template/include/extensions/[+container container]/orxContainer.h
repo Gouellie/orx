@@ -4,7 +4,7 @@
 #define _orxCONTAINER_H_
 
 #include "orx.h"
-
+#include "orxContainerObject.h"
 
 //! Prototypes
 

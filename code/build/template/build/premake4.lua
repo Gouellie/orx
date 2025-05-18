@@ -344,6 +344,8 @@ project "[name]"
     {
 [+imgui
         "../include/extensions/imgui",]
+[+container
+        "../include/extensions/container",]        
         "../include/extensions",
         "../include"
     }
