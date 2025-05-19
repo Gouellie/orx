@@ -196,10 +196,10 @@ static int orxContainer_CompareObjectDepth(const void* _psta, const void* _pstb)
 {
   orxU8 uDepth_a, uDepth_b;
 
-  const orxOBJECT* psta = (const orxOBJECT*)_psta;
-  const orxOBJECT* pstb = (const orxOBJECT*)_pstb;
+  const orxOBJECT* psta = *(const orxOBJECT**)_psta;
+  const orxOBJECT* pstb = *(const orxOBJECT**)_pstb;
 
-  if (orxOBJECT(_psta) == orxNULL || orxOBJECT(pstb) == orxNULL)
+  if (psta == orxNULL || pstb == orxNULL)
     return 0;
 
   uDepth_a = orxContainer_GetObjectDepth(psta);
@@ -229,9 +229,9 @@ static orxSTATUS orxFASTCALL orxContainer_EventHandler(const orxEVENT *_pstEvent
     /* Show debug? */
     if(orxConfig_GetBool(orxCONTAINER_KZ_CONFIG_SHOW_DEBUG) != orxFALSE)
     {
-      orxS32      i, listSize = 0;
-      orxOBJECT*  listSorted[orxCONTAINER_KU32_BANK_SIZE]{};
-      orxOBJECT** ppstObject;
+      orxS32                i, listSize = 0;
+      orxOBJECT*            listSorted[orxCONTAINER_KU32_BANK_SIZE]{};
+      orxOBJECT**           ppstObject;
 
       /* For all containers objects */
       for (ppstObject = (orxOBJECT**)orxBank_GetNext(sstObject.pstContainerBank, orxNULL);
@@ -241,9 +241,6 @@ static orxSTATUS orxFASTCALL orxContainer_EventHandler(const orxEVENT *_pstEvent
         /* Still valid? */
         if (orxOBJECT(*ppstObject) != orxNULL)
         {
-          /* For future ref */
-          //orxContainerObject* poBlockObject = (orxContainerObject*)orxObject_GetUserData(*ppstObject);
-
           listSorted[listSize] = (*ppstObject);
           listSize++;
         }
@@ -263,6 +260,9 @@ static orxSTATUS orxFASTCALL orxContainer_EventHandler(const orxEVENT *_pstEvent
 
       for (i = 0; i < listSize; i++)
       {
+        /* Get ScrollObject */
+        // orxContainerObject* poBlockObject = (orxContainerObject*)orxObject_GetUserData(*ppstObject);
+
         /* Updates it */
         orxContainer_DrawBoundingBox(listSorted[i]);
       }
