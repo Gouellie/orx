@@ -145,18 +145,15 @@ static void orxContainer_DrawBoundingBox(orxOBJECT* _pstObject)
         /* Stores its Z */
         fZ = stFrustum.vTL.fZ + vCameraPosition.fZ;
 
-        orxVECTOR v1, v2, v3, v4;
+        orxVECTOR vTopLeft, vTopRight, vBottomRight, vBottomLeft;
 
         /* Sets it */
-        orxVector_Set(&v1, (vOrigin.fX), (vOrigin.fY), fZ);
-        orxVector_Set(&v2, (vOrigin.fX + stBoundingBox.vX.fX), (vOrigin.fY + stBoundingBox.vX.fY), fZ);
-        orxVector_Set(&v3, (vOrigin.fX + stBoundingBox.vX.fX + stBoundingBox.vY.fX), (vOrigin.fY + stBoundingBox.vX.fY + stBoundingBox.vY.fY), fZ);
-        orxVector_Set(&v4, (vOrigin.fX + stBoundingBox.vY.fX), (vOrigin.fY + stBoundingBox.vY.fY), fZ);
+        orxVector_Set(&vTopLeft, (vOrigin.fX), (vOrigin.fY), fZ);
+        orxVector_Set(&vTopRight, (vOrigin.fX + stBoundingBox.vX.fX), (vOrigin.fY + stBoundingBox.vX.fY), fZ);
+        orxVector_Set(&vBottomRight, (vOrigin.fX + stBoundingBox.vX.fX + stBoundingBox.vY.fX), (vOrigin.fY + stBoundingBox.vX.fY + stBoundingBox.vY.fY), fZ);
+        orxVector_Set(&vBottomLeft, (vOrigin.fX + stBoundingBox.vY.fX), (vOrigin.fY + stBoundingBox.vY.fY), fZ);
 
-        orxVECTOR avVertexList[] =
-        {
-          v1, v2, v3, v4
-        };
+        orxVECTOR avVertexList[] = { vTopLeft, vTopRight, vBottomRight, vBottomLeft };
 
         for (i = 0; i < 4; i++) {
           /* Stores its screen position */
@@ -166,7 +163,7 @@ static void orxContainer_DrawBoundingBox(orxOBJECT* _pstObject)
         /* Draws polygon */
         orxDisplay_DrawPolygon(avVertexList, (orxS32)4, orxCONTAINER_KST_DEFAULT_COLOR, orxFALSE);
 
-        /* Draws name */
+        /* Draws name (top left) */
         orxContainer_DrawContainerName(_pstObject, pstViewport, avVertexList[0]);
       }
     }
