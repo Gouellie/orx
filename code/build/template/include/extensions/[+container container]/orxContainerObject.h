@@ -1,7 +1,4 @@
-/**
- * @file orxContainerObject.h
- * @date [date]
- */
+//! Includes
 
 #ifndef _ORXCONTAINEROBJECT_H_
 #define _ORXCONTAINEROBJECT_H_
@@ -12,6 +9,7 @@
  /** Config defines
   */
 #define orxCONTAINEROBJECT_KZ_CONFIG_MARGIN             "Margin"
+#define orxCONTAINEROBJECT_KZ_CONFIG_SPACING            "Spacing"
 
 typedef struct __orxCONTAINER_MARGIN_t
 {
@@ -28,7 +26,8 @@ class orxContainerObject : public ScrollObject
 
 public:
 
-                orxCONTAINER_MARGIN     GetMargin() const { return m_sMargin; };
+                orxS32                  GetSpacing() const { return m_sSpacing; }
+                orxCONTAINER_MARGIN     GetMargin()  const { return m_stMargin; }
 
 protected:
 
@@ -41,13 +40,18 @@ private:
 //! Variables
 private:
 
-                orxCONTAINER_MARGIN     m_sMargin = {};
+                orxS32                  m_sSpacing = orxS32(0);
+                orxCONTAINER_MARGIN     m_stMargin = {};
 };
 
 #ifdef orxCONTAINER_IMPL
 
 void orxContainerObject::OnCreate()
 {
+  if (orxConfig_HasValue(orxCONTAINEROBJECT_KZ_CONFIG_SPACING))
+  {
+    m_sSpacing = orxConfig_GetS32(orxCONTAINEROBJECT_KZ_CONFIG_SPACING);
+  }
   if (orxConfig_HasValue(orxCONTAINEROBJECT_KZ_CONFIG_MARGIN))
   {
     orxS32 sMarginCount;
@@ -56,14 +60,14 @@ void orxContainerObject::OnCreate()
     {
       /* Uniform Margin */
       orxS32 sMargin_Uniform = orxConfig_GetS32(orxCONTAINEROBJECT_KZ_CONFIG_MARGIN);
-      m_sMargin = { sMargin_Uniform, sMargin_Uniform, sMargin_Uniform, sMargin_Uniform };
+      m_stMargin = { sMargin_Uniform, sMargin_Uniform, sMargin_Uniform, sMargin_Uniform };
     }
     else if (sMarginCount == 2)
     {
       /* Horizontal - Vertical Margin */
       orxS32 sMargin_Horizontal = orxConfig_GetListS32(orxCONTAINEROBJECT_KZ_CONFIG_MARGIN, 0);
       orxS32 sMargin_Vertical   = orxConfig_GetListS32(orxCONTAINEROBJECT_KZ_CONFIG_MARGIN, 1);
-      m_sMargin = { sMargin_Horizontal, sMargin_Vertical, sMargin_Horizontal, sMargin_Vertical };
+      m_stMargin = { sMargin_Horizontal, sMargin_Vertical, sMargin_Horizontal, sMargin_Vertical };
     }
     else if (sMarginCount == 4)
     {
@@ -72,7 +76,7 @@ void orxContainerObject::OnCreate()
       orxS32 sMargin_Top    = orxConfig_GetListS32(orxCONTAINEROBJECT_KZ_CONFIG_MARGIN, 1);
       orxS32 sMargin_Right  = orxConfig_GetListS32(orxCONTAINEROBJECT_KZ_CONFIG_MARGIN, 2);
       orxS32 sMargin_Bottom = orxConfig_GetListS32(orxCONTAINEROBJECT_KZ_CONFIG_MARGIN, 3);
-      m_sMargin = { sMargin_Left, sMargin_Top, sMargin_Right, sMargin_Bottom };
+      m_stMargin = { sMargin_Left, sMargin_Top, sMargin_Right, sMargin_Bottom };
     }
   }
 

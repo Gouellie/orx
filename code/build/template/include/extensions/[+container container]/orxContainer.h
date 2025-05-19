@@ -28,20 +28,6 @@ void                                        orxContainer_Exit();
  * Static variables                                                        *
  ***************************************************************************/
 
-//! Helpers
-
-static const orxSTRING orxCONTAINER_PrintGUID(const orxOBJECT* _pstObject, const orxSTRING _zPrefix = orxNULL)
-{
-  static orxCHAR sacBuffer[orxCONTAINER_KU32_TEXT_BUFFER_SIZE];
-  orxString_NPrint(sacBuffer, sizeof(sacBuffer), "%s%s0x%016llX",
-    (_zPrefix != orxNULL) ? _zPrefix : orxSTRING_EMPTY,
-    (_zPrefix != orxNULL) ? "##" : orxSTRING_EMPTY,
-    orxStructure_GetGUID(orxSTRUCTURE(_pstObject)));
-
-  // Done!
-  return sacBuffer;
-}
-
 #ifdef orxCONTAINER_IMPL
 
 static void orxContainer_DrawContainerName(orxOBJECT* _pstObject, orxVIEWPORT* _pstViewport, orxVECTOR _vOrigin)
@@ -93,11 +79,33 @@ static void orxContainer_DrawContainerName(orxOBJECT* _pstObject, orxVIEWPORT* _
   return;
 }
 
+static void orxContainer_SetChildOrigin(orxOBJECT* _pstObject, orxVECTOR& _vDestinationOrigin)
+{
+  orxOBOX stBoundingBox;
+  orxObject_GetBoundingBox(_pstObject, &stBoundingBox);
+
+  orxVECTOR vPosition, vOrigin, vOffset;
+  orxObject_GetPosition(_pstObject, &vPosition);
+
+  /* Gets current origin */
+  orxVector_Sub(&vOrigin, &(stBoundingBox.vPosition), &(stBoundingBox.vPivot));
+
+  /* Gets offset to destination */
+  orxVector_Sub(&vOffset, &_vDestinationOrigin, &vOrigin);
+
+  /* Clear Z */
+  vOffset.fZ = orxFLOAT_0;
+
+  /* Update Position with Offset */
+  orxVector_Add(&vPosition, &vOffset, &vPosition);
+
+  /* Update Position */
+  orxObject_SetPosition(_pstObject, &vPosition);
+}
+
 static void orxContainer_DrawBoundingBox(orxOBJECT* _pstObject)
 {
-  orxVECTOR vWorldPosition;
   orxOBOX stBoundingBox;
-  orxObject_GetWorldPosition(_pstObject, &vWorldPosition);
   orxObject_GetBoundingBox(_pstObject, &stBoundingBox);
 
   orxVECTOR vOrigin;
@@ -226,51 +234,75 @@ static orxSTATUS orxFASTCALL orxContainer_EventHandler(const orxEVENT *_pstEvent
     /* Pushes config section */
     orxConfig_PushSection(orxCONTAINER_KZ_CONFIG_SECTION);
 
-    /* Show debug? */
-    if(orxConfig_GetBool(orxCONTAINER_KZ_CONFIG_SHOW_DEBUG) != orxFALSE)
+    orxS32                i, listSize = 0;
+    orxOBJECT*            listSorted[orxCONTAINER_KU32_BANK_SIZE]{};
+    orxOBJECT**           ppstObject;
+
+    /* For all containers objects */
+    for (ppstObject = (orxOBJECT**)orxBank_GetNext(sstObject.pstContainerBank, orxNULL);
+      ppstObject != orxNULL;
+      ppstObject = (orxOBJECT**)orxBank_GetNext(sstObject.pstContainerBank, ppstObject))
     {
-      orxS32                i, listSize = 0;
-      orxOBJECT*            listSorted[orxCONTAINER_KU32_BANK_SIZE]{};
-      orxOBJECT**           ppstObject;
-
-      /* For all containers objects */
-      for (ppstObject = (orxOBJECT**)orxBank_GetNext(sstObject.pstContainerBank, orxNULL);
-        ppstObject != orxNULL;
-        ppstObject = (orxOBJECT**)orxBank_GetNext(sstObject.pstContainerBank, ppstObject))
+      /* Still valid? */
+      if (orxOBJECT(*ppstObject) != orxNULL)
       {
-        /* Still valid? */
-        if (orxOBJECT(*ppstObject) != orxNULL)
-        {
-          listSorted[listSize] = (*ppstObject);
-          listSize++;
-        }
-        else
-        {
-          /* Free */
-          orxBank_Free(sstObject.pstContainerBank, ppstObject);
-          ppstObject = orxNULL;
-        }
+        listSorted[listSize] = (*ppstObject);
+        listSize++;
       }
-
-      if (listSize > 1)
+      else
       {
-        /* Sorted by depth */
-        qsort(listSorted, listSize, sizeof(orxOBJECT*), orxContainer_CompareObjectDepth);
-      }
-
-      for (i = 0; i < listSize; i++)
-      {
-        /* Get ScrollObject */
-        // orxContainerObject* poBlockObject = (orxContainerObject*)orxObject_GetUserData(*ppstObject);
-
-        /* Updates it */
-        orxContainer_DrawBoundingBox(listSorted[i]);
+        /* Free */
+        orxBank_Free(sstObject.pstContainerBank, ppstObject);
+        ppstObject = orxNULL;
       }
     }
 
-    /* Pops config section */
-    orxConfig_PopSection();
+    if (listSize > 1)
+    {
+      /* Sorted by depth */
+      qsort(listSorted, listSize, sizeof(orxOBJECT*), orxContainer_CompareObjectDepth);
+    }
+
+    for (i = 0; i < listSize; i++)
+    {
+      /* Get ScrollObject */
+      orxContainerObject* poBlockObject = (orxContainerObject*)orxObject_GetUserData(listSorted[i]);
+
+      orxOBOX stBoundingBox;
+      orxObject_GetBoundingBox(listSorted[i], &stBoundingBox);
+
+      orxVECTOR vOrigin;
+      /* Gets origin */
+      orxVector_Sub(&vOrigin, &(stBoundingBox.vPosition), &(stBoundingBox.vPivot));
+
+      orxVECTOR vAnchor, vSize;
+      orxVector_Copy(&vAnchor, &vOrigin);
+
+      orxCONTAINER_MARGIN stMargin = poBlockObject->GetMargin();
+      orxS32 sSpacing = poBlockObject->GetSpacing();
+
+      vAnchor.fX += stMargin.fLeft;
+      vAnchor.fY += stMargin.fTop;
+
+      for (orxOBJECT* pstChild = orxObject_GetChild(listSorted[i]);
+          pstChild != orxNULL;
+          pstChild = orxObject_GetSibling(pstChild))
+      {
+        orxContainer_SetChildOrigin(pstChild, vAnchor);
+        orxObject_GetSize(pstChild, &vSize);
+        vAnchor.fY += (vSize.fY + sSpacing);
+      }
+
+      /* Show debug? */
+      if (orxConfig_GetBool(orxCONTAINER_KZ_CONFIG_SHOW_DEBUG) != orxFALSE)
+      {
+        orxContainer_DrawBoundingBox(listSorted[i]);
+      }
+    }
   }
+
+  /* Pops config section */
+  orxConfig_PopSection();
 
   /* Done! */
   return eResult;
