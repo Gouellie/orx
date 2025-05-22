@@ -59,6 +59,8 @@ public:
                 orxCONTAINER_ORIENTATION      GetContainerOrientation()   const { return m_eContainerOrientation; }
                 orxU32                        GetAlingFlags()             const { return m_u32AlingFlags; }
 
+                virtual const orxVECTOR&      GetOrigin() const;
+
 protected:
 
                 void                          OnCreate();
@@ -151,9 +153,6 @@ void orxContainerObject::OnCreate()
   if (orxConfig_HasValue(orxCONTAINEROBJECT_KZ_CONFIG_ALIGNMENT))
   {
     m_u32AlingFlags = orxGraphic_GetAlignFlags(orxConfig_GetString(orxCONTAINEROBJECT_KZ_CONFIG_ALIGNMENT));
-
-    /* Align left? For ref */
-    // if (orxFLAG_TEST(m_u32AlingFlags, orxGRAPHIC_KU32_FLAG_ALIGN_LEFT)) { }
   }
 
   /* Register Object */
@@ -168,6 +167,46 @@ void orxContainerObject::OnDelete()
 void orxContainerObject::Update(const orxCLOCK_INFO& _rstInfo)
 {
 
+}
+
+inline const orxVECTOR& orxContainerObject::GetOrigin() const
+{
+  orxOBOX stBoundingBox;
+  orxObject_GetBoundingBox(GetOrxObject(), &stBoundingBox);
+
+  orxVECTOR vOrigin;
+  /* Gets origin */
+  orxVector_Sub(&vOrigin, &(stBoundingBox.vPosition), &(stBoundingBox.vPivot));
+
+  /* Align left? */
+  if (orxFLAG_TEST(m_u32AlingFlags, orxGRAPHIC_KU32_FLAG_ALIGN_LEFT))
+  {
+  }
+  /* Align right? */
+  else if (orxFLAG_TEST(m_u32AlingFlags, orxGRAPHIC_KU32_FLAG_ALIGN_RIGHT))
+  {
+  }
+  /* Align center */
+  else
+  {
+
+  }
+
+  /* Align top? */
+  if (orxFLAG_TEST(m_u32AlingFlags, orxGRAPHIC_KU32_FLAG_ALIGN_TOP))
+  {
+
+  }
+  /* Align bottom? */
+  else if (orxFLAG_TEST(m_u32AlingFlags, orxGRAPHIC_KU32_FLAG_ALIGN_BOTTOM))
+  {
+  }
+  /* Align center */
+  else
+  {
+  }
+
+  return vOrigin;
 }
 
 #endif // orxCONTAINER_IMPL

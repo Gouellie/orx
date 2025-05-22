@@ -265,12 +265,7 @@ static orxSTATUS orxFASTCALL orxContainer_EventHandler(const orxEVENT *_pstEvent
       /* Get ScrollObject */
       orxContainerObject* poBlockObject = (orxContainerObject*)orxObject_GetUserData(listSorted[i]);
 
-      orxOBOX stBoundingBox;
-      orxObject_GetBoundingBox(listSorted[i], &stBoundingBox);
-
-      orxVECTOR vOrigin;
-      /* Gets origin */
-      orxVector_Sub(&vOrigin, &(stBoundingBox.vPosition), &(stBoundingBox.vPivot));
+      orxVECTOR vOrigin = poBlockObject->GetOrigin();
 
       orxVECTOR vAnchor, vSize;
       orxVector_Copy(&vAnchor, &vOrigin);
