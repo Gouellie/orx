@@ -16,8 +16,9 @@
 #define orxCONTAINEROBJECT_KZ_CONFIG_STACK_GRID               "Grid"
 
 #define orxCONTAINEROBJECT_KZ_CONFIG_ORIENTATION              "Orientation"
-#define orxCONTAINEROBJECT_KZ_CONFIG_HORIZONTAL               "Horizontal"
-#define orxCONTAINEROBJECT_KZ_CONFIG_VERTICAL                 "Vertical"
+#define orxCONTAINEROBJECT_KZ_CONFIG_ORIENTATION_HORIZONTAL   "horizontal"
+#define orxCONTAINEROBJECT_KZ_CONFIG_ORIENTATION_VERTICAL     "vertical"
+#define orxCONTAINEROBJECT_KZ_CONFIG_ORIENTATION_BOTH         "both"
 
 #define orxCONTAINEROBJECT_KZ_CONFIG_ALIGNMENT                "Alignment"
 
@@ -42,6 +43,7 @@ typedef enum __orxCONTAINER_ORIENTATION_t
 {
   orxCONTAINER_ORIENTATION_VERTICAL = 0,
   orxCONTAINER_ORIENTATION_HORIZONTAL,
+  orxCONTAINER_ORIENTATION_BOTH,
 
   orxCONTAINER_ORIENTATION_NONE = orxENUM_NONE    /**< Invalid status */
 
@@ -55,13 +57,13 @@ public:
 
                 orxBOOL                       GetNeedUpdate()             const { return m_bNeedUpdate; }
                 void                          SetNeedUpdate(orxBOOL value)      { m_bNeedUpdate = value; }
-                orxS32                        GetSpacing()                const { return m_s32Spacing; }
-                orxCONTAINER_MARGIN           GetMargin()                 const { return m_stMargin; }
                 orxCONTAINER_TYPE             GetContainerType()          const { return m_eContainerType; }
                 orxCONTAINER_ORIENTATION      GetContainerOrientation()   const { return m_eContainerOrientation; }
                 orxU32                        GetAlingFlags()             const { return m_u32AlingFlags; }
 
-                virtual void                  GetOrigin(orxVECTOR& vOrigin) const;
+                virtual void                  GetMargin(orxVECTOR& vMargin)   const;
+                virtual void                  GetOrigin(orxVECTOR& vOrigin)   const;
+                virtual void                  GetSpacing(const orxVECTOR& vSize, orxVECTOR& vSpacing) const;
 
 protected:
 
@@ -71,16 +73,20 @@ protected:
 
 private:
 
-//! Variables
-private:
+                orxCONTAINER_TYPE             m_eContainerType;
+                orxCONTAINER_ORIENTATION      m_eContainerOrientation;
 
                 orxS32                        m_s32Spacing                = orxS32(0);
                 orxCONTAINER_MARGIN           m_stMargin                  = {};
-                orxCONTAINER_TYPE             m_eContainerType;
-                orxCONTAINER_ORIENTATION      m_eContainerOrientation;
+
                 orxU32                        m_u32AlingFlags             = orxGRAPHIC_KU32_FLAG_ALIGN_TOP | orxGRAPHIC_KU32_FLAG_ALIGN_LEFT;
+
+                orxBOOL                       m_bNeedUpdate               = orxTRUE;
                 orxVECTOR                     m_vPreviousSize;
-                orxBOOL                       m_bNeedUpdate =             orxTRUE;
+                orxFLOAT                      m_fRotation;
+
+private:
+
 };
 
 #ifdef orxCONTAINER_IMPL
@@ -89,6 +95,7 @@ void orxContainerObject::OnCreate()
 {
   // cache size
   GetSize(m_vPreviousSize);
+  m_fRotation = GetRotation();
 
   /* Default initialization */
   m_eContainerType        = orxCONTAINER_TYPE::orxCONTAINER_TYPE_STACK_PANEL;
@@ -112,13 +119,17 @@ void orxContainerObject::OnCreate()
   if (orxConfig_HasValue(orxCONTAINEROBJECT_KZ_CONFIG_ORIENTATION))
   {
     const orxSTRING zContainerOrientation = orxConfig_GetString(orxCONTAINEROBJECT_KZ_CONFIG_ORIENTATION);
-    if (orxString_Compare(zContainerOrientation, orxCONTAINEROBJECT_KZ_CONFIG_HORIZONTAL) == 0)
+    if (orxString_Compare(zContainerOrientation, orxCONTAINEROBJECT_KZ_CONFIG_ORIENTATION_HORIZONTAL) == 0)
     {
       m_eContainerOrientation = orxCONTAINER_ORIENTATION::orxCONTAINER_ORIENTATION_HORIZONTAL;
     }
-    else if (orxString_Compare(zContainerOrientation, orxCONTAINEROBJECT_KZ_CONFIG_VERTICAL) == 0)
+    else if (orxString_Compare(zContainerOrientation, orxCONTAINEROBJECT_KZ_CONFIG_ORIENTATION_VERTICAL) == 0)
     {
       m_eContainerOrientation = orxCONTAINER_ORIENTATION::orxCONTAINER_ORIENTATION_VERTICAL;
+    }
+    else if (orxString_Compare(zContainerOrientation, orxCONTAINEROBJECT_KZ_CONFIG_ORIENTATION_BOTH) == 0)
+    {
+      m_eContainerOrientation = orxCONTAINER_ORIENTATION::orxCONTAINER_ORIENTATION_BOTH;
     }
   }
 
@@ -173,9 +184,15 @@ void orxContainerObject::OnDelete()
 
 void orxContainerObject::Update(const orxCLOCK_INFO& _rstInfo)
 {
+  orxFLOAT fCurrentRotation = GetRotation();
+  if (fCurrentRotation != m_fRotation)
+  {
+    m_fRotation = fCurrentRotation;
+    m_bNeedUpdate = orxTRUE;
+  }
+
   orxVECTOR vCurrentSize;
   GetSize(vCurrentSize);
-
   if (orxVector_GetDistance(&vCurrentSize, &m_vPreviousSize))
   {
     orxVector_Copy(&m_vPreviousSize, &vCurrentSize);
@@ -225,6 +242,100 @@ inline void orxContainerObject::GetOrigin(orxVECTOR& vOrigin) const
     orxVECTOR vHalfY;
     orxVector_Mulf(&vHalfY, &(stBoundingBox.vY), 0.5f);
     orxVector_Add(&vOrigin, &vOrigin, &vHalfY);
+  }
+}
+
+inline void orxContainerObject::GetMargin(orxVECTOR& vMargin) const
+{
+  vMargin.fZ = orxFLOAT_0;
+  /* Align left? */
+  if (orxFLAG_TEST(m_u32AlingFlags, orxGRAPHIC_KU32_FLAG_ALIGN_LEFT))
+  {
+    vMargin.fX = m_stMargin.fLeft;
+  }
+  /* Align right? */
+  else if (orxFLAG_TEST(m_u32AlingFlags, orxGRAPHIC_KU32_FLAG_ALIGN_RIGHT))
+  {
+    vMargin.fX = -m_stMargin.fRight;
+  }
+
+  /* Align top? */
+  if (orxFLAG_TEST(m_u32AlingFlags, orxGRAPHIC_KU32_FLAG_ALIGN_TOP))
+  {
+    vMargin.fY = m_stMargin.fTop;
+  }
+  /* Align bottom? */
+  else if (orxFLAG_TEST(m_u32AlingFlags, orxGRAPHIC_KU32_FLAG_ALIGN_BOTTOM))
+  {
+    vMargin.fY = -m_stMargin.fBottom;
+  }
+
+  orxFLOAT fRotation = GetRotation();
+  if (fRotation) {
+    orxVector_2DRotate(&vMargin, &vMargin, GetRotation());
+  }
+}
+
+inline void orxContainerObject::GetSpacing(const orxVECTOR& vSize, orxVECTOR& vSpacing) const
+{
+  if (m_eContainerOrientation == orxCONTAINER_ORIENTATION::orxCONTAINER_ORIENTATION_VERTICAL)
+  {
+    /* Align top? */
+    if (orxFLAG_TEST(m_u32AlingFlags, orxGRAPHIC_KU32_FLAG_ALIGN_TOP))
+    {
+      /* top going down */
+      vSpacing.fX = orxFLOAT_0;
+      vSpacing.fY = vSize.fY + m_s32Spacing;
+      vSpacing.fZ = orxFLOAT_0;
+    }
+    else
+    {
+      /* bottom going up */
+      vSpacing.fX = orxFLOAT_0;
+      vSpacing.fY = -(vSize.fY + m_s32Spacing);
+      vSpacing.fZ = orxFLOAT_0;
+    }
+  }
+  else if (m_eContainerOrientation == orxCONTAINER_ORIENTATION::orxCONTAINER_ORIENTATION_HORIZONTAL)
+  {
+    /* Align left? */
+    if (orxFLAG_TEST(m_u32AlingFlags, orxGRAPHIC_KU32_FLAG_ALIGN_LEFT))
+    {
+      /* left going right */
+      vSpacing.fX = vSize.fX + m_s32Spacing;
+      vSpacing.fY = orxFLOAT_0;
+      vSpacing.fZ = orxFLOAT_0;
+    }
+    else
+    {
+      /* right going left */
+      vSpacing.fX = -(vSize.fX + m_s32Spacing);
+      vSpacing.fY = orxFLOAT_0;
+      vSpacing.fZ = orxFLOAT_0;
+    }
+  }
+  else
+  {
+    /* Align left? */
+    if (orxFLAG_TEST(m_u32AlingFlags, orxGRAPHIC_KU32_FLAG_ALIGN_LEFT))
+    {
+      /* left going right */
+      vSpacing.fX = vSize.fX + m_s32Spacing;
+      vSpacing.fY = vSize.fY + m_s32Spacing;
+      vSpacing.fZ = orxFLOAT_0;
+    }
+    else
+    {
+      /* right going left */
+      vSpacing.fX = -(vSize.fX + m_s32Spacing);
+      vSpacing.fY = -(vSize.fY + m_s32Spacing);
+      vSpacing.fZ = orxFLOAT_0;
+    }
+  }
+
+  orxFLOAT fRotation = GetRotation();
+  if (fRotation) {
+    orxVector_2DRotate(&vSpacing, &vSpacing, GetRotation());
   }
 }
 
