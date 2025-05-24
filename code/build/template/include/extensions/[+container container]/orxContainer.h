@@ -103,6 +103,11 @@ static void orxContainer_SetChildOrigin(orxOBJECT* _pstObject, orxVECTOR& _vDest
   orxObject_SetPosition(_pstObject, &vPosition);
 }
 
+static void orxContainer_DrawPivotPoint(orxVECTOR& _vOrigin)
+{
+  orxDisplay_DrawCircle(&_vOrigin, orxFLOAT(5.0f), orxCONTAINER_KST_DEFAULT_COLOR, orxTRUE);
+}
+
 static void orxContainer_DrawBoundingBox(orxOBJECT* _pstObject)
 {
   orxOBOX stBoundingBox;
@@ -165,6 +170,10 @@ static void orxContainer_DrawBoundingBox(orxOBJECT* _pstObject)
 
         /* Draws name (top left) */
         orxContainer_DrawContainerName(_pstObject, pstViewport, avVertexList[0]);
+
+        orxVECTOR vPivot;
+        orxRender_GetScreenPosition(&stBoundingBox.vPosition, pstViewport, &vPivot);
+        orxContainer_DrawPivotPoint(vPivot);
       }
     }
   }
@@ -265,7 +274,11 @@ static orxSTATUS orxFASTCALL orxContainer_EventHandler(const orxEVENT *_pstEvent
       /* Get ScrollObject */
       orxContainerObject* poBlockObject = (orxContainerObject*)orxObject_GetUserData(listSorted[i]);
 
-      orxVECTOR vOrigin = poBlockObject->GetOrigin();
+      if (poBlockObject->GetNeedUpdate() == orxFALSE)
+        continue;
+
+      orxVECTOR vOrigin;
+      poBlockObject->GetOrigin(vOrigin);
 
       orxVECTOR vAnchor, vSize;
       orxVector_Copy(&vAnchor, &vOrigin);
@@ -290,6 +303,8 @@ static orxSTATUS orxFASTCALL orxContainer_EventHandler(const orxEVENT *_pstEvent
       {
         orxContainer_DrawBoundingBox(listSorted[i]);
       }
+
+      poBlockObject->SetNeedUpdate(orxFALSE);
     }
   }
 

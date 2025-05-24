@@ -53,13 +53,15 @@ class orxContainerObject : public ScrollObject
 
 public:
 
+                orxBOOL                       GetNeedUpdate()             const { return m_bNeedUpdate; }
+                void                          SetNeedUpdate(orxBOOL value)      { m_bNeedUpdate = value; }
                 orxS32                        GetSpacing()                const { return m_s32Spacing; }
                 orxCONTAINER_MARGIN           GetMargin()                 const { return m_stMargin; }
                 orxCONTAINER_TYPE             GetContainerType()          const { return m_eContainerType; }
                 orxCONTAINER_ORIENTATION      GetContainerOrientation()   const { return m_eContainerOrientation; }
                 orxU32                        GetAlingFlags()             const { return m_u32AlingFlags; }
 
-                virtual const orxVECTOR&      GetOrigin() const;
+                virtual void                  GetOrigin(orxVECTOR& vOrigin) const;
 
 protected:
 
@@ -77,12 +79,17 @@ private:
                 orxCONTAINER_TYPE             m_eContainerType;
                 orxCONTAINER_ORIENTATION      m_eContainerOrientation;
                 orxU32                        m_u32AlingFlags             = orxGRAPHIC_KU32_FLAG_ALIGN_TOP | orxGRAPHIC_KU32_FLAG_ALIGN_LEFT;
+                orxVECTOR                     m_vPreviousSize;
+                orxBOOL                       m_bNeedUpdate =             orxTRUE;
 };
 
 #ifdef orxCONTAINER_IMPL
 
 void orxContainerObject::OnCreate()
 {
+  // cache size
+  GetSize(m_vPreviousSize);
+
   /* Default initialization */
   m_eContainerType        = orxCONTAINER_TYPE::orxCONTAINER_TYPE_STACK_PANEL;
   m_eContainerOrientation = orxCONTAINER_ORIENTATION::orxCONTAINER_ORIENTATION_VERTICAL;
@@ -166,47 +173,59 @@ void orxContainerObject::OnDelete()
 
 void orxContainerObject::Update(const orxCLOCK_INFO& _rstInfo)
 {
+  orxVECTOR vCurrentSize;
+  GetSize(vCurrentSize);
 
+  if (orxVector_GetDistance(&vCurrentSize, &m_vPreviousSize))
+  {
+    orxVector_Copy(&m_vPreviousSize, &vCurrentSize);
+    m_bNeedUpdate = orxTRUE;
+  }
 }
 
-inline const orxVECTOR& orxContainerObject::GetOrigin() const
+inline void orxContainerObject::GetOrigin(orxVECTOR& vOrigin) const
 {
   orxOBOX stBoundingBox;
   orxObject_GetBoundingBox(GetOrxObject(), &stBoundingBox);
 
-  orxVECTOR vOrigin;
-  /* Gets origin */
-  orxVector_Sub(&vOrigin, &(stBoundingBox.vPosition), &(stBoundingBox.vPivot));
+  orxVECTOR vTopLeft;
+  orxVector_Sub(&vTopLeft, &(stBoundingBox.vPosition), &(stBoundingBox.vPivot));
 
-  /* Align left? */
-  if (orxFLAG_TEST(m_u32AlingFlags, orxGRAPHIC_KU32_FLAG_ALIGN_LEFT))
-  {
-  }
+  orxVector_Copy(&vOrigin, &vTopLeft);
+
   /* Align right? */
-  else if (orxFLAG_TEST(m_u32AlingFlags, orxGRAPHIC_KU32_FLAG_ALIGN_RIGHT))
+  if (orxFLAG_TEST(m_u32AlingFlags, orxGRAPHIC_KU32_FLAG_ALIGN_RIGHT))
   {
+    orxVector_Add(&vOrigin, &vOrigin, &(stBoundingBox.vX));
+  }
+  else if (orxFLAG_TEST(m_u32AlingFlags, orxGRAPHIC_KU32_FLAG_ALIGN_LEFT))
+  {
+    // nothing
   }
   /* Align center */
   else
   {
-
+    orxVECTOR vHalfX;
+    orxVector_Mulf(&vHalfX, &(stBoundingBox.vX),0.5f);
+    orxVector_Add(&vOrigin, &vOrigin, &vHalfX);
   }
 
-  /* Align top? */
-  if (orxFLAG_TEST(m_u32AlingFlags, orxGRAPHIC_KU32_FLAG_ALIGN_TOP))
-  {
-
-  }
   /* Align bottom? */
-  else if (orxFLAG_TEST(m_u32AlingFlags, orxGRAPHIC_KU32_FLAG_ALIGN_BOTTOM))
+  if (orxFLAG_TEST(m_u32AlingFlags, orxGRAPHIC_KU32_FLAG_ALIGN_BOTTOM))
   {
+    orxVector_Add(&vOrigin, &vOrigin, &(stBoundingBox.vY));
+  }
+  else if (orxFLAG_TEST(m_u32AlingFlags, orxGRAPHIC_KU32_FLAG_ALIGN_TOP))
+  {
+    // nothing
   }
   /* Align center */
   else
   {
+    orxVECTOR vHalfY;
+    orxVector_Mulf(&vHalfY, &(stBoundingBox.vY), 0.5f);
+    orxVector_Add(&vOrigin, &vOrigin, &vHalfY);
   }
-
-  return vOrigin;
 }
 
 #endif // orxCONTAINER_IMPL
