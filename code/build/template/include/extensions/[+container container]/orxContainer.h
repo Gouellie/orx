@@ -63,9 +63,14 @@ static void orxContainer_DrawContainerName(orxOBJECT* _pstObject, orxVIEWPORT* _
       stTextTransform.fScaleX = (orx2F(1.0f) * fWidth);
       stTextTransform.fScaleY = (orx2F(1.0f) * fHeight);
 
+      orxVECTOR offSet = { orx2F(5.0f), orx2F(5.0f) };
+      orxVector_2DRotate(&offSet, &offSet, orxObject_GetRotation(_pstObject));
+
       /* Inits transform's destination */
-      stTextTransform.fDstX = _vOrigin.fX + orx2F(5.0f);
-      stTextTransform.fDstY = _vOrigin.fY + orx2F(5.0f);
+      stTextTransform.fDstX = _vOrigin.fX + offSet.fX;
+      stTextTransform.fDstY = _vOrigin.fY + offSet.fY;
+
+      stTextTransform.fRotation = orxObject_GetRotation(_pstObject);
 
       /* Writes string */
       orxString_NPrint(acBuffer, sizeof(acBuffer), orxObject_GetName(_pstObject));
@@ -79,19 +84,32 @@ static void orxContainer_DrawContainerName(orxOBJECT* _pstObject, orxVIEWPORT* _
   return;
 }
 
-static void orxContainer_SetChildOrigin(orxOBJECT* _pstObject, orxVECTOR& _vDestinationOrigin)
+static void orxContainer_SetChildOrigin(orxOBJECT* _pstObject, orxVECTOR& _vDestinationOrigin, orxU32 alignment)
 {
   orxOBOX stBoundingBox;
   orxObject_GetBoundingBox(_pstObject, &stBoundingBox);
 
-  orxVECTOR vPosition, vOrigin, vOffset;
+  orxVECTOR vPosition, vObjectOrigin, vOffset;
   orxObject_GetPosition(_pstObject, &vPosition);
 
-  /* Gets current origin */
-  orxVector_Sub(&vOrigin, &(stBoundingBox.vPosition), &(stBoundingBox.vPivot));
+  orxFLOAT fZ = vPosition.fZ;
+
+  /* Gets current origin TOP LEFT */
+  orxVector_Sub(&vObjectOrigin, &(stBoundingBox.vPosition), &(stBoundingBox.vPivot));
+
+  /* Is Right Aligned */
+  if (orxFLAG_TEST(alignment, orxGRAPHIC_KU32_FLAG_ALIGN_RIGHT))
+  {
+    orxVector_Add(&vObjectOrigin, &vObjectOrigin, &(stBoundingBox.vX));
+  }
+  /* Is Bottom Aligned */
+  if (orxFLAG_TEST(alignment, orxGRAPHIC_KU32_FLAG_ALIGN_BOTTOM))
+  {
+    orxVector_Add(&vObjectOrigin, &vObjectOrigin, &(stBoundingBox.vY));
+  }
 
   /* Gets offset to destination */
-  orxVector_Sub(&vOffset, &_vDestinationOrigin, &vOrigin);
+  orxVector_Sub(&vOffset, &_vDestinationOrigin, &vObjectOrigin);
 
   /* Clear Z */
   vOffset.fZ = orxFLOAT_0;
@@ -103,9 +121,38 @@ static void orxContainer_SetChildOrigin(orxOBJECT* _pstObject, orxVECTOR& _vDest
   orxObject_SetPosition(_pstObject, &vPosition);
 }
 
-static void orxContainer_DrawPoint(orxVECTOR& _vOrigin)
+static void orxContainer_DrawPointForViewPort(const orxVECTOR& _vPosition, orxVIEWPORT* _pstViewPort)
 {
-  orxDisplay_DrawCircle(&_vOrigin, orxFLOAT(5.0f), orxCONTAINER_KST_DEFAULT_COLOR, orxTRUE);
+  orxVECTOR vScreenPos;
+  orxRender_GetScreenPosition(&_vPosition, _pstViewPort, &vScreenPos);
+  orxDisplay_DrawCircle(&vScreenPos, orxFLOAT(5.0f), orxCONTAINER_KST_DEFAULT_COLOR, orxTRUE);
+}
+
+static void orxContainer_DrawPoint(const orxVECTOR& vPosition)
+{
+  orxVIEWPORT* pstViewport;
+
+  /* For all viewports */
+  for (pstViewport = orxVIEWPORT(orxStructure_GetFirst(orxSTRUCTURE_ID_VIEWPORT));
+    pstViewport != orxNULL;
+    pstViewport = orxVIEWPORT(orxStructure_GetNext(pstViewport)))
+  {
+    /* Is enabled and supports debug? */
+    if ((orxViewport_IsEnabled(pstViewport) != orxFALSE)
+      && (!orxStructure_GetFlags(pstViewport, orxVIEWPORT_KU32_FLAG_NO_DEBUG)))
+    {
+      orxCAMERA* pstCamera;
+
+      /* Gets viewport camera */
+      pstCamera = orxViewport_GetCamera(pstViewport);
+
+      /* Valid? */
+      if (pstCamera != orxNULL)
+      {
+        orxContainer_DrawPointForViewPort(vPosition, pstViewport);
+      }
+    }
+  }
 }
 
 static void orxContainer_DrawBoundingBox(orxOBJECT* _pstObject)
@@ -170,15 +217,6 @@ static void orxContainer_DrawBoundingBox(orxOBJECT* _pstObject)
 
         /* Draws name (top left) */
         orxContainer_DrawContainerName(_pstObject, pstViewport, avVertexList[0]);
-
-        //orxVECTOR vPivot;
-        //orxRender_GetScreenPosition(&stBoundingBox.vPosition, pstViewport, &vPivot);
-        //orxContainer_DrawPoint(vPivot);
-
-        //orxVECTOR vAnchor;
-        //orxConfig_GetVector("Anchor", &vAnchor);
-        //orxRender_GetScreenPosition(&vAnchor, pstViewport, &vAnchor);
-        //orxContainer_DrawPoint(vAnchor);
       }
     }
   }
@@ -274,18 +312,18 @@ static orxSTATUS orxFASTCALL orxContainer_EventHandler(const orxEVENT *_pstEvent
     for (i = 0; i < listSize; i++)
     {
       /* Get ScrollObject */
-      orxContainerObject* poBlockObject = (orxContainerObject*)orxObject_GetUserData(listSorted[i]);
+      orxContainerObject* poContainerObject = (orxContainerObject*)orxObject_GetUserData(listSorted[i]);
 
-      if (poBlockObject->GetNeedUpdate())
+      if (poContainerObject->GetNeedUpdate())
       {
         orxVECTOR vOrigin;
-        poBlockObject->GetOrigin(vOrigin);
+        poContainerObject->GetOrigin(vOrigin);
 
         orxVECTOR vAnchor;
         orxVector_Copy(&vAnchor, &vOrigin);
 
         orxVECTOR vMargin;
-        poBlockObject->GetMargin(vMargin);
+        poContainerObject->GetMargin(vMargin);
         orxVector_Add(&vAnchor, &vAnchor, &vMargin);
 
         orxVECTOR vSpacing, vSize;
@@ -293,13 +331,15 @@ static orxSTATUS orxFASTCALL orxContainer_EventHandler(const orxEVENT *_pstEvent
           pstChild != orxNULL;
           pstChild = orxObject_GetSibling(pstChild))
         {
-          orxContainer_SetChildOrigin(pstChild, vAnchor);
+          orxContainer_DrawPoint(vAnchor);
+
+          orxContainer_SetChildOrigin(pstChild, vAnchor, poContainerObject->GetAlingFlags());
           orxObject_GetSize(pstChild, &vSize);
-          poBlockObject->GetSpacing(vSize, vSpacing);
+          poContainerObject->GetSpacing(vSize, vSpacing);
           orxVector_Add(&vAnchor, &vAnchor, &vSpacing);
         }
 
-        poBlockObject->SetNeedUpdate(orxFALSE);
+        poContainerObject->SetNeedUpdate(orxFALSE);
       }
 
       /* Pushes config section */
