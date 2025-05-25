@@ -84,43 +84,6 @@ static void orxContainer_DrawContainerName(orxOBJECT* _pstObject, orxVIEWPORT* _
   return;
 }
 
-static void orxContainer_SetChildOrigin(orxOBJECT* _pstObject, orxVECTOR& _vDestinationOrigin, orxU32 alignment)
-{
-  orxOBOX stBoundingBox;
-  orxObject_GetBoundingBox(_pstObject, &stBoundingBox);
-
-  orxVECTOR vPosition, vObjectOrigin, vOffset;
-  orxObject_GetPosition(_pstObject, &vPosition);
-
-  orxFLOAT fZ = vPosition.fZ;
-
-  /* Gets current origin TOP LEFT */
-  orxVector_Sub(&vObjectOrigin, &(stBoundingBox.vPosition), &(stBoundingBox.vPivot));
-
-  /* Is Right Aligned */
-  if (orxFLAG_TEST(alignment, orxGRAPHIC_KU32_FLAG_ALIGN_RIGHT))
-  {
-    orxVector_Add(&vObjectOrigin, &vObjectOrigin, &(stBoundingBox.vX));
-  }
-  /* Is Bottom Aligned */
-  if (orxFLAG_TEST(alignment, orxGRAPHIC_KU32_FLAG_ALIGN_BOTTOM))
-  {
-    orxVector_Add(&vObjectOrigin, &vObjectOrigin, &(stBoundingBox.vY));
-  }
-
-  /* Gets offset to destination */
-  orxVector_Sub(&vOffset, &_vDestinationOrigin, &vObjectOrigin);
-
-  /* Clear Z */
-  vOffset.fZ = orxFLOAT_0;
-
-  /* Update Position with Offset */
-  orxVector_Add(&vPosition, &vOffset, &vPosition);
-
-  /* Update Position */
-  orxObject_SetPosition(_pstObject, &vPosition);
-}
-
 static void orxContainer_DrawPointForViewPort(const orxVECTOR& _vPosition, orxVIEWPORT* _pstViewPort)
 {
   orxVECTOR vScreenPos;
@@ -222,12 +185,6 @@ static void orxContainer_DrawBoundingBox(orxOBJECT* _pstObject)
   }
 }
 
-static void orxContainer_FitChildInRect(orxOBJECT* _pstObject, const orxOBOX& p_rect)
-{
-  // Done!
-  return;
-}
-
 static void orxContainer_Update(const orxCLOCK_INFO* _pstClockInfo, void* _pContext)
 {
   // Done!
@@ -314,33 +271,7 @@ static orxSTATUS orxFASTCALL orxContainer_EventHandler(const orxEVENT *_pstEvent
       /* Get ScrollObject */
       orxContainerObject* poContainerObject = (orxContainerObject*)orxObject_GetUserData(listSorted[i]);
 
-      if (poContainerObject->GetNeedUpdate())
-      {
-        orxVECTOR vOrigin;
-        poContainerObject->GetOrigin(vOrigin);
-
-        orxVECTOR vAnchor;
-        orxVector_Copy(&vAnchor, &vOrigin);
-
-        orxVECTOR vMargin;
-        poContainerObject->GetMargin(vMargin);
-        orxVector_Add(&vAnchor, &vAnchor, &vMargin);
-
-        orxVECTOR vSpacing, vSize;
-        for (orxOBJECT* pstChild = orxObject_GetChild(listSorted[i]);
-          pstChild != orxNULL;
-          pstChild = orxObject_GetSibling(pstChild))
-        {
-          orxContainer_DrawPoint(vAnchor);
-
-          orxContainer_SetChildOrigin(pstChild, vAnchor, poContainerObject->GetAlingFlags());
-          orxObject_GetSize(pstChild, &vSize);
-          poContainerObject->GetSpacing(vSize, vSpacing);
-          orxVector_Add(&vAnchor, &vAnchor, &vSpacing);
-        }
-
-        poContainerObject->SetNeedUpdate(orxFALSE);
-      }
+      poContainerObject->SortChildren();
 
       /* Pushes config section */
       orxConfig_PushSection(orxCONTAINER_KZ_CONFIG_SECTION);
