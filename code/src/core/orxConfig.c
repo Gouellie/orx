@@ -126,6 +126,7 @@
 #define orxCONFIG_KZ_CONFIG_SECTION_SYSTEM        "System"    /**< System section name */
 #define orxCONFIG_KZ_CONFIG_BITS                  "Bits"      /**< Bits property */
 #define orxCONFIG_KZ_CONFIG_BUILD                 "Build"     /**< Build property */
+#define orxCONFIG_KZ_CONFIG_COMPILER              "Compiler"  /**< Compiler property */
 #define orxCONFIG_KZ_CONFIG_ENDIANNESS            "Endianness"/**< Endianness property */
 #define orxCONFIG_KZ_CONFIG_PLATFORM              "Platform"  /**< Platform property */
 #define orxCONFIG_KZ_CONFIG_PROCESSOR             "Processor" /**< Processor property */
@@ -224,6 +225,20 @@
 #else
 
   #define orxCONFIG_KZ_BUILD                      "release"
+
+#endif
+
+#if defined(__orxLLVM__)
+
+  #define orxCONFIG_KZ_COMPILER                   "llvm"
+
+#elif defined(__orxGCC__)
+
+  #define orxCONFIG_KZ_COMPILER                   "gcc"
+
+#elif defined(__orxMSVC__)
+
+  #define orxCONFIG_KZ_COMPILER                   "msvc"
 
 #endif
 
@@ -502,7 +517,7 @@ orxVECTOR *orxFASTCALL orxConfig_ToVector(const orxSTRING _zValue, orxCOLORSPACE
     if(((eResult = orxString_ToVector(_zValue, _pvVector, &zRemainder)) == orxSTATUS_FAILURE)
     && (_eColorSpace != orxCOLORSPACE_NONE))
     {
-      orxCHAR        *acBuffer = (orxCHAR *)alloca((s32RandomSeparatorIndex + 1) * sizeof(orxCHAR));
+      orxCHAR        *acBuffer = (orxCHAR *)orxMemory_StackAllocate((s32RandomSeparatorIndex + 1) * sizeof(orxCHAR));
       const orxSTRING zValue = _zValue;
 
       /* Random? */
@@ -1920,7 +1935,7 @@ static orxINLINE orxSTATUS orxConfig_DeleteSection(orxCONFIG_SECTION *_pstSectio
   /* Checks */
   orxASSERT(_pstSection != orxNULL);
 
-  // Should delete section?
+  /* Should delete section? */
   if((_pfnClearCallback == orxNULL)
   || (_pfnClearCallback(_pstSection->zName, orxNULL) != orxFALSE))
   {
@@ -4206,7 +4221,7 @@ void orxFASTCALL orxConfig_CommandGetValue(orxU32 _u32ArgNumber, const orxCOMMAN
       zKey = zSection + s32SeparatorIndex + 1;
 
       /* Allocates section buffer */
-      zSection = (const orxSTRING)alloca(s32SeparatorIndex + 1);
+      zSection = (const orxSTRING)orxMemory_StackAllocate(s32SeparatorIndex + 1);
 
       /* Copies its name */
       orxMemory_Copy((orxSTRING)zSection, _astArgList[0].zValue, s32SeparatorIndex);
@@ -4390,7 +4405,7 @@ void orxFASTCALL orxConfig_CommandSetValue(orxU32 _u32ArgNumber, const orxCOMMAN
     s32SeparatorIndex = orxString_SearchCharIndex(zSection, orxCONFIG_KC_SECTION_SEPARATOR, 0);
 
     /* Found and no empty part? */
-    if((s32SeparatorIndex > 0) && (*(zSection + s32SeparatorIndex +1) != orxCHAR_NULL))
+    if((s32SeparatorIndex > 0) && (*(zSection + s32SeparatorIndex + 1) != orxCHAR_NULL))
     {
       /* Updates value */
       zValue = _astArgList[1].zValue;
@@ -4399,7 +4414,7 @@ void orxFASTCALL orxConfig_CommandSetValue(orxU32 _u32ArgNumber, const orxCOMMAN
       zKey = zSection + s32SeparatorIndex + 1;
 
       /* Allocates section buffer */
-      zSection = (const orxSTRING)alloca(s32SeparatorIndex + 1);
+      zSection = (const orxSTRING)orxMemory_StackAllocate(s32SeparatorIndex + 1);
 
       /* Copies its name */
       orxMemory_Copy((orxSTRING)zSection, _astArgList[0].zValue, s32SeparatorIndex);
@@ -4794,6 +4809,7 @@ static orxINLINE void orxConfig_SetSystemValues()
   orxConfig_SetString(orxCONFIG_KZ_CONFIG_PLATFORM, orxCONFIG_KZ_PLATFORM);
   orxConfig_SetString(orxCONFIG_KZ_CONFIG_PROCESSOR, orxCONFIG_KZ_PROCESSOR);
   orxConfig_SetString(orxCONFIG_KZ_CONFIG_BUILD, orxCONFIG_KZ_BUILD);
+  orxConfig_SetString(orxCONFIG_KZ_CONFIG_COMPILER, orxCONFIG_KZ_COMPILER);
 
   /* Pops system section */
   orxConfig_PopSection();

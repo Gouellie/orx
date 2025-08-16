@@ -735,25 +735,25 @@ int orxDisplay_GetBasisUInfo(void *_pInput, unsigned int _uiInputSize, orxDISPLA
   basist::ktx2_header  *pstHeader = (basist::ktx2_header *)_pInput;
   unsigned int          uiResult = 0;
 
-  // Valid?
+  /* Valid? */
   if(_uiInputSize >= sizeof(basist::ktx2_header))
   {
-    // Valid?
+    /* Valid? */
     if((memcmp(pstHeader, basist::g_ktx2_file_identifier, sizeof(basist::g_ktx2_file_identifier)) == 0)
     && (pstHeader->m_vk_format == basist::KTX2_VK_FORMAT_UNDEFINED)
     && (pstHeader->m_type_size == 1))
     {
-      // Store width, height and size
+      /* Store width, height and size */
       *_puiWidth   = pstHeader->m_pixel_width;
       *_puiHeight  = pstHeader->m_pixel_height;
       *_puiSize    = basist::basis_get_bytes_per_block_or_pixel((basist::transcoder_texture_format)_eFormat) * ((basist::basis_transcoder_format_is_uncompressed((basist::transcoder_texture_format)_eFormat)) ? pstHeader->m_pixel_width * pstHeader->m_pixel_height : ((pstHeader->m_pixel_width + 3) >> 2) * ((pstHeader->m_pixel_height + 3) >> 2));
 
-      // Update result
+      /* Update result */
       uiResult = *_puiSize;
     }
   }
 
-  // Done!
+  /* Done! */
   return uiResult;
 }
 
@@ -993,6 +993,14 @@ static orxINLINE void orxDisplay_GLFW_UpdateDefaultMode()
       /* Pops config section */
       orxConfig_PopSection();
     }
+  }
+  else
+  {
+    /* Updates default mode */
+    sstDisplay.u32DefaultWidth        = orxDISPLAY_KU32_DEFAULT_WIDTH;
+    sstDisplay.u32DefaultHeight       = orxDISPLAY_KU32_DEFAULT_HEIGHT;
+    sstDisplay.u32DefaultDepth        = orxDISPLAY_KU32_DEFAULT_DEPTH;
+    sstDisplay.u32DefaultRefreshRate  = orxDISPLAY_KU32_DEFAULT_REFRESH_RATE;
   }
 
   /* Done! */
@@ -2356,45 +2364,46 @@ static orxSTATUS orxFASTCALL orxDisplay_GLFW_ProcessFont(void *_pContext)
           /* Valid? */
           if(s32VertexCount > 0)
           {
-            msdfgen::Shape stShape;
+            msdfgen::Shape  stShape;
+            orxS32          j;
 
             /* Inverses Y axis */
             stShape.inverseYAxis = true;
 
             /* For all vertices */
-            for(int i = 0; i < s32VertexCount; ++i)
+            for(j = 0; j < s32VertexCount; ++j)
             {
               /* Depending on type */
-              switch(astVertexList[i].type)
+              switch(astVertexList[j].type)
               {
                 default:
                 case STBTT_vmove:
                 {
-                  stShape.contours.reserve(s32VertexCount - i);
+                  stShape.contours.reserve(s32VertexCount - j);
                   stShape.addContour();
                   break;
                 }
                 case STBTT_vline:
                 {
-                  msdfgen::Point2 stPrevious((double)(astVertexList[i - 1].x), (double)(astVertexList[i - 1].y));
-                  msdfgen::Point2 stCurrent((double)(astVertexList[i].x), (double)(astVertexList[i].y));
+                  msdfgen::Point2 stPrevious((double)(astVertexList[j - 1].x), (double)(astVertexList[j - 1].y));
+                  msdfgen::Point2 stCurrent((double)(astVertexList[j].x), (double)(astVertexList[j].y));
                   stShape.contours.back().addEdge(msdfgen::EdgeHolder(stPrevious, stCurrent));
                   break;
                 }
                 case STBTT_vcurve:
                 {
-                  msdfgen::Point2 stPrevious((double)(astVertexList[i - 1].x), (double)(astVertexList[i - 1].y));
-                  msdfgen::Point2 stC0((double)(astVertexList[i].cx), (double)(astVertexList[i].cy));
-                  msdfgen::Point2 stCurrent((double)(astVertexList[i].x), (double)(astVertexList[i].y));
+                  msdfgen::Point2 stPrevious((double)(astVertexList[j - 1].x), (double)(astVertexList[j - 1].y));
+                  msdfgen::Point2 stC0((double)(astVertexList[j].cx), (double)(astVertexList[j].cy));
+                  msdfgen::Point2 stCurrent((double)(astVertexList[j].x), (double)(astVertexList[j].y));
                   stShape.contours.back().addEdge(msdfgen::EdgeHolder(stPrevious, stC0, stCurrent));
                   break;
                 }
                 case STBTT_vcubic:
                 {
-                  msdfgen::Point2 stPrevious((double)(astVertexList[i - 1].x), (double)(astVertexList[i - 1].y));
-                  msdfgen::Point2 stC0((double)(astVertexList[i].cx), (double)(astVertexList[i].cy));
-                  msdfgen::Point2 stC1((double)(astVertexList[i].cx1), (double)(astVertexList[i].cy1));
-                  msdfgen::Point2 stCurrent((double)(astVertexList[i].x), (double)(astVertexList[i].y));
+                  msdfgen::Point2 stPrevious((double)(astVertexList[j - 1].x), (double)(astVertexList[j - 1].y));
+                  msdfgen::Point2 stC0((double)(astVertexList[j].cx), (double)(astVertexList[j].cy));
+                  msdfgen::Point2 stC1((double)(astVertexList[j].cx1), (double)(astVertexList[j].cy1));
+                  msdfgen::Point2 stCurrent((double)(astVertexList[j].x), (double)(astVertexList[j].y));
                   stShape.contours.back().addEdge(msdfgen::EdgeHolder(stPrevious, stC0, stC1, stCurrent));
                   break;
                 }
@@ -2704,7 +2713,7 @@ static orxSTATUS orxFASTCALL orxDisplay_GLFW_LoadBitmapData(orxBITMAP *_pstBitma
 
         /* Retrieves header for Basis Universal & QOI */
         uiHeaderSize  = orxMAX((unsigned int)sizeof(basist::ktx2_header), QOI_HEADER_SIZE);
-        pu8Header     = (orxU8 *)alloca(uiHeaderSize);
+        pu8Header     = (orxU8 *)orxMemory_StackAllocate(uiHeaderSize);
         orxResource_Read(hResource, uiHeaderSize, pu8Header, orxNULL, orxNULL);
         orxResource_Seek(hResource, 0, orxSEEK_OFFSET_WHENCE_START);
 
@@ -6061,7 +6070,7 @@ orxSTATUS orxFASTCALL orxDisplay_GLFW_SetVideoMode(const orxDISPLAY_VIDEO_MODE *
     iWidth        = (int)((_pstVideoMode->u32Width != 0) ? _pstVideoMode->u32Width : sstDisplay.u32DefaultWidth);
     iHeight       = (int)((_pstVideoMode->u32Height != 0) ? _pstVideoMode->u32Height : sstDisplay.u32DefaultHeight);
     iDepth        = (int)((_pstVideoMode->u32Depth != 0) ? _pstVideoMode->u32Depth : sstDisplay.u32DefaultDepth);
-    iRefreshRate  = (int)((_pstVideoMode->u32RefreshRate != 0) ? _pstVideoMode->u32RefreshRate : sstDisplay.u32DefaultRefreshRate);
+    iRefreshRate  = (int)(((_pstVideoMode->bFullScreen != orxFALSE) && (_pstVideoMode->u32RefreshRate != 0)) ? _pstVideoMode->u32RefreshRate : sstDisplay.u32DefaultRefreshRate);
 
 #ifndef __orxWEB__
     /* Doesn't allow resize? */

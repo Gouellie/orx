@@ -199,9 +199,9 @@ do                                                                      \
 
 #endif /* __orxDEBUG__ */
 
-//If the symbol for iOS 8 isnt defined, define it.
+/* If the symbol for iOS 8 isnt defined, define it. */
 #ifndef NSFoundationVersionNumber_iOS_8_0
-#define NSFoundationVersionNumber_iOS_8_0 1134.10 //extracted with NSLog(@"%f", NSFoundationVersionNumber)
+#define NSFoundationVersionNumber_iOS_8_0 1134.10 /* extracted with NSLog(@"%f", NSFoundationVersionNumber) */
 #endif
 
 typedef enum __orxDISPLAY_ATTRIBUTE_LOCATION_t
@@ -2370,7 +2370,7 @@ static orxSTATUS orxFASTCALL orxDisplay_iOS_LoadBitmapData(orxBITMAP *_pstBitmap
         int     iWidth, iHeight, iDummy = 0;
 
         /* Retrieves header for QOI */
-        pu8Header     = (orxU8 *)alloca(QOI_HEADER_SIZE);
+        pu8Header     = (orxU8 *)orxMemory_StackAllocate(QOI_HEADER_SIZE);
         orxResource_Read(hResource, QOI_HEADER_SIZE, pu8Header, orxNULL, orxNULL);
         orxResource_Seek(hResource, 0, orxSEEK_OFFSET_WHENCE_START);
 

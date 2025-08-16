@@ -1,14 +1,14 @@
 apply plugin: 'com.android.application'
 
 android {
-    namespace 'org.orx.demo'
-    compileSdk sdkVersion.toInteger()
+    namespace = 'org.orx.demo'
+    compileSdk = sdkVersion.toInteger()
 
     // Ideally, we want to use the default NDK version for the used AGP version.
     // However, we opt-in to NDK r27 since it comes with many important features/optimizations.
-    ndkVersion '27.2.12479018'
+    ndkVersion = '27.3.13750724'
 
-    buildFeatures.prefab true
+    buildFeatures.prefab = true
 
     defaultConfig {
         applicationId 'org.orx.demo'
@@ -69,14 +69,14 @@ android {
         }
     }
     lint {
-        abortOnError true
+        abortOnError = true
     }
     androidResources {
         noCompress = [ '.obr', '.ktx2' ]
     }
 }
 dependencies {
-    releaseImplementation 'org.orx-project:orx:1.16'
-    debugImplementation 'org.orx-project:orxd:1.16'
-    profileImplementation 'org.orx-project:orxp:1.16'
+    releaseImplementation 'org.orx-project:orx:1.17'
+    debugImplementation 'org.orx-project:orxd:1.17'
+    profileImplementation 'org.orx-project:orxp:1.17'
 }

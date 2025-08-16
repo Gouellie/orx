@@ -143,6 +143,7 @@ solution "orx"
 
     configuration {"not web"}
         includedirs {"../../extern/glfw-3/include"}
+        flags {"CXX11"}
 
     configuration {"web"}
         buildoptions {"-pthread"}
