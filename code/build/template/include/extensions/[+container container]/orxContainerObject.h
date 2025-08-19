@@ -198,7 +198,7 @@ void orxContainerObject::Update(const orxCLOCK_INFO& _rstInfo)
   }
 }
 
-inline void orxContainerObject::GetOrigin(orxVECTOR& vOrigin) const
+void orxContainerObject::GetOrigin(orxVECTOR& vOrigin) const
 {
   orxOBOX stBoundingBox;
   orxObject_GetBoundingBox(GetOrxObject(), &stBoundingBox);
@@ -243,36 +243,76 @@ inline void orxContainerObject::GetOrigin(orxVECTOR& vOrigin) const
   }
 }
 
-inline void orxContainerObject::SortChildren()
+void orxContainerObject::SortChildren()
 {
+  // TODO need to change sort children logic.
+  // First loop offsets the children positions starting from zero and calculates the rect dimension (space occupied by children + spacing)
+  // Second loop offsets the children positions based on the rect dimension and alignment (anchor is calculated at the end)
+
   if (m_bNeedUpdate)
   {
     orxVECTOR vOrigin;
     GetOrigin(vOrigin);
 
-    orxVECTOR vAnchor;
+    orxVECTOR vAnchor, vRectDimension;
     orxVector_Copy(&vAnchor, &vOrigin);
+
+    vRectDimension = orxVECTOR_0;
 
     orxVECTOR vMargin;
     GetMargin(vMargin);
     orxVector_Add(&vAnchor, &vAnchor, &vMargin);
 
     orxVECTOR vSpacing, vSize;
-    for (orxOBJECT* pstChild = orxObject_GetChild(GetOrxObject());
+    vSpacing = orxVECTOR_0;
+    for (orxOBJECT* pstChild = orxObject_GetOwnedChild(GetOrxObject());
       pstChild != orxNULL;
-      pstChild = orxObject_GetSibling(pstChild))
+      pstChild = orxObject_GetOwnedSibling(pstChild))
     {
+      orxVector_Add(&vAnchor, &vAnchor, &vSpacing);
       SetChildOrigin(pstChild, vAnchor);
       orxObject_GetSize(pstChild, &vSize);
       GetSpacing(vSize, vSpacing);
-      orxVector_Add(&vAnchor, &vAnchor, &vSpacing);
+      vRectDimension.fX = vSize.fX;
+    }
+
+    orxBOOL hasRightLeftAlignment = orxFLAG_TEST(m_u32AlingFlags, orxGRAPHIC_KU32_FLAG_ALIGN_RIGHT | orxGRAPHIC_KU32_FLAG_ALIGN_LEFT);
+    orxBOOL hasTopBottomAlignment = orxFLAG_TEST(m_u32AlingFlags, orxGRAPHIC_KU32_FLAG_ALIGN_TOP | orxGRAPHIC_KU32_FLAG_ALIGN_BOTTOM);
+
+    if (hasRightLeftAlignment && hasTopBottomAlignment)
+    {
+      return;
+    }
+
+    vRectDimension.fY = vAnchor.fY;
+
+    orxVECTOR vHalf;
+    orxVector_Mulf(&vHalf, &vRectDimension, orxFLOAT(0.5f));
+
+    if (hasRightLeftAlignment)
+    {
+      vHalf.fX = orxFLOAT_0;
+    }
+    if (hasTopBottomAlignment)
+    {
+      vHalf.fY = orxFLOAT_0;
+    }
+
+    orxVECTOR vPos;
+    for (orxOBJECT* pstChild = orxObject_GetOwnedChild(GetOrxObject());
+      pstChild != orxNULL;
+      pstChild = orxObject_GetOwnedSibling(pstChild))
+    {
+      orxObject_GetPosition(pstChild, &vPos);
+      orxVector_Sub(&vPos, &vPos, &vHalf);
+      orxObject_SetPosition(pstChild, &vPos);
     }
 
     m_bNeedUpdate = orxFALSE;
   }
 }
 
-inline void orxContainerObject::SetChildOrigin(orxOBJECT* _pstChildObject, orxVECTOR& _vChildOrigin)
+void orxContainerObject::SetChildOrigin(orxOBJECT* _pstChildObject, orxVECTOR& _vChildOrigin)
 {
   orxOBOX stBoundingBox;
   orxObject_GetBoundingBox(_pstChildObject, &stBoundingBox);
@@ -294,7 +334,7 @@ inline void orxContainerObject::SetChildOrigin(orxOBJECT* _pstChildObject, orxVE
   }
   else if (orxFLAG_TEST(m_u32AlingFlags, orxGRAPHIC_KU32_FLAG_ALIGN_LEFT))
   {
-    // do nothing
+    /* do nothing */
   }
   else
   {
@@ -320,12 +360,12 @@ inline void orxContainerObject::SetChildOrigin(orxOBJECT* _pstChildObject, orxVE
   orxObject_SetPosition(_pstChildObject, &vPosition);
 }
 
-inline void orxContainerObject::FitChildInRect(orxOBJECT* _pstObject, const orxOBOX& p_rect)
+void orxContainerObject::FitChildInRect(orxOBJECT* _pstObject, const orxOBOX& p_rect)
 {
 
 }
 
-inline void orxContainerObject::GetMargin(orxVECTOR& vMargin) const
+void orxContainerObject::GetMargin(orxVECTOR& vMargin) const
 {
   /* Init */
   vMargin = orxVECTOR_0;
@@ -358,7 +398,7 @@ inline void orxContainerObject::GetMargin(orxVECTOR& vMargin) const
   }
 }
 
-inline void orxContainerObject::GetSpacing(const orxVECTOR& vSize, orxVECTOR& vSpacing) const
+void orxContainerObject::GetSpacing(const orxVECTOR& vSize, orxVECTOR& vSpacing) const
 {
   /* Init */
   vSpacing = orxVECTOR_0;

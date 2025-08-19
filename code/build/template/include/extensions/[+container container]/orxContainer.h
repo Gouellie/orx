@@ -168,9 +168,10 @@ static void orxContainer_DrawBoundingBox(orxOBJECT* _pstObject)
         orxVector_Set(&vBottomRight, (vOrigin.fX + stBoundingBox.vX.fX + stBoundingBox.vY.fX), (vOrigin.fY + stBoundingBox.vX.fY + stBoundingBox.vY.fY), fZ);
         orxVector_Set(&vBottomLeft, (vOrigin.fX + stBoundingBox.vY.fX), (vOrigin.fY + stBoundingBox.vY.fY), fZ);
 
+        const int vertexListSize = 4;
         orxVECTOR avVertexList[] = { vTopLeft, vTopRight, vBottomRight, vBottomLeft };
 
-        for (i = 0; i < 4; i++) {
+        for (i = 0; i < vertexListSize; i++) {
           /* Stores its screen position */
           orxRender_GetScreenPosition(&avVertexList[i], pstViewport, &(avVertexList[i]));
         }
