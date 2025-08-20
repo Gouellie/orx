@@ -18,7 +18,6 @@
 #define orxCONTAINEROBJECT_KZ_CONFIG_ORIENTATION              "Orientation"
 #define orxCONTAINEROBJECT_KZ_CONFIG_ORIENTATION_HORIZONTAL   "horizontal"
 #define orxCONTAINEROBJECT_KZ_CONFIG_ORIENTATION_VERTICAL     "vertical"
-#define orxCONTAINEROBJECT_KZ_CONFIG_ORIENTATION_BOTH         "both"
 
 #define orxCONTAINEROBJECT_KZ_CONFIG_ALIGNMENT                "Alignment"
 
@@ -43,7 +42,6 @@ typedef enum __orxCONTAINER_ORIENTATION_t
 {
   orxCONTAINER_ORIENTATION_VERTICAL = 0,
   orxCONTAINER_ORIENTATION_HORIZONTAL,
-  orxCONTAINER_ORIENTATION_BOTH,
 
   orxCONTAINER_ORIENTATION_NONE = orxENUM_NONE    /**< Invalid status */
 
@@ -57,10 +55,8 @@ public:
 
                 virtual void                  GetMargin(orxVECTOR& vMargin)   const;
                 virtual void                  GetOrigin(orxVECTOR& vOrigin)   const;
-                virtual void                  GetSpacing(const orxVECTOR& vSize, orxVECTOR& vSpacing) const;
 
                 virtual void                  SortChildren();
-                virtual void                  SetChildOrigin(orxOBJECT* _pstChildObject, orxVECTOR& _vChildOrigin);
                 virtual void                  FitChildInRect(orxOBJECT* _pstObject, const orxOBOX& p_rect);
 
 protected:
@@ -68,6 +64,9 @@ protected:
                 void                          OnCreate();
                 void                          OnDelete();
                 void                          Update(const orxCLOCK_INFO& _rstInfo);
+
+                virtual void                  SetChildOrigin(orxOBJECT* _pstChildObject, orxVECTOR& _vChildOrigin);
+                virtual void                  GetAnchorOffset(const orxVECTOR& vSize, orxVECTOR& vSpacing) const;
 
 private:
 
@@ -82,6 +81,8 @@ private:
                 orxBOOL                       m_bNeedUpdate               = orxTRUE;
                 orxVECTOR                     m_vPreviousSize;
                 orxFLOAT                      m_fRotation;
+
+                virtual void                  GetFinalOffset(const orxVECTOR& vRectangleSize, const orxVECTOR& vChildSize, orxVECTOR& vOffset) const;
 
 private:
 
@@ -121,13 +122,9 @@ void orxContainerObject::OnCreate()
     {
       m_eContainerOrientation = orxCONTAINER_ORIENTATION::orxCONTAINER_ORIENTATION_HORIZONTAL;
     }
-    else if (orxString_Compare(zContainerOrientation, orxCONTAINEROBJECT_KZ_CONFIG_ORIENTATION_VERTICAL) == 0)
+    else
     {
       m_eContainerOrientation = orxCONTAINER_ORIENTATION::orxCONTAINER_ORIENTATION_VERTICAL;
-    }
-    else if (orxString_Compare(zContainerOrientation, orxCONTAINEROBJECT_KZ_CONFIG_ORIENTATION_BOTH) == 0)
-    {
-      m_eContainerOrientation = orxCONTAINER_ORIENTATION::orxCONTAINER_ORIENTATION_BOTH;
     }
   }
 
@@ -245,70 +242,83 @@ void orxContainerObject::GetOrigin(orxVECTOR& vOrigin) const
 
 void orxContainerObject::SortChildren()
 {
-  // TODO need to change sort children logic.
-  // First loop offsets the children positions starting from zero and calculates the rect dimension (space occupied by children + spacing)
-  // Second loop offsets the children positions based on the rect dimension and alignment (anchor is calculated at the end)
-
   if (m_bNeedUpdate)
   {
-    orxVECTOR vOrigin;
+    m_bNeedUpdate = orxFALSE;
+
+    orxVECTOR vOrigin, vMargin, vAnchor;
     GetOrigin(vOrigin);
-
-    orxVECTOR vAnchor, vRectDimension;
-    orxVector_Copy(&vAnchor, &vOrigin);
-
-    vRectDimension = orxVECTOR_0;
-
-    orxVECTOR vMargin;
     GetMargin(vMargin);
+    orxVector_Copy(&vAnchor, &vOrigin);
     orxVector_Add(&vAnchor, &vAnchor, &vMargin);
 
-    orxVECTOR vSpacing, vSize;
-    vSpacing = orxVECTOR_0;
+    orxVECTOR vRectDimension, vAnchorOffset, vSize;
+    vRectDimension  = orxVECTOR_0;
+    vAnchorOffset   = orxVECTOR_0;
+    vSize           = orxVECTOR_0;
+
+    orxU8 childCount = 0;
     for (orxOBJECT* pstChild = orxObject_GetOwnedChild(GetOrxObject());
       pstChild != orxNULL;
       pstChild = orxObject_GetOwnedSibling(pstChild))
     {
-      orxVector_Add(&vAnchor, &vAnchor, &vSpacing);
-      SetChildOrigin(pstChild, vAnchor);
+      /* Layout Children according to Container Orientation and calculate Rectangle Dimension */
       orxObject_GetSize(pstChild, &vSize);
-      GetSpacing(vSize, vSpacing);
-      vRectDimension.fX = vSize.fX;
+      SetChildOrigin(pstChild, vAnchor);
+      GetAnchorOffset(vSize, vAnchorOffset);
+      orxVector_Add(&vAnchor, &vAnchor, &vAnchorOffset);
+
+      switch (m_eContainerOrientation)
+      {
+        case orxCONTAINER_ORIENTATION::orxCONTAINER_ORIENTATION_HORIZONTAL:
+          vRectDimension.fX += vSize.fX;
+          vRectDimension.fY = orxMAX(vSize.fY, vRectDimension.fY);
+          break;
+        case orxCONTAINER_ORIENTATION::orxCONTAINER_ORIENTATION_VERTICAL:
+          vRectDimension.fX = orxMAX(vSize.fX, vRectDimension.fX);
+          vRectDimension.fY += vSize.fY;
+          break;
+      }
+
+      childCount++;
     }
 
-    orxBOOL hasRightLeftAlignment = orxFLAG_TEST(m_u32AlingFlags, orxGRAPHIC_KU32_FLAG_ALIGN_RIGHT | orxGRAPHIC_KU32_FLAG_ALIGN_LEFT);
-    orxBOOL hasTopBottomAlignment = orxFLAG_TEST(m_u32AlingFlags, orxGRAPHIC_KU32_FLAG_ALIGN_TOP | orxGRAPHIC_KU32_FLAG_ALIGN_BOTTOM);
-
-    if (hasRightLeftAlignment && hasTopBottomAlignment)
+    /* No children, nothing to sort */
+    if (childCount == 0)
     {
       return;
     }
 
-    vRectDimension.fY = vAnchor.fY;
-
-    orxVECTOR vHalf;
-    orxVector_Mulf(&vHalf, &vRectDimension, orxFLOAT(0.5f));
-
-    if (hasRightLeftAlignment)
+    /* Top Left alignment requires no further steps */
+    if (orxFLAG_TEST_ALL(m_u32AlingFlags, orxGRAPHIC_KU32_FLAG_ALIGN_TOP | orxGRAPHIC_KU32_FLAG_ALIGN_LEFT))
     {
-      vHalf.fX = orxFLOAT_0;
-    }
-    if (hasTopBottomAlignment)
-    {
-      vHalf.fY = orxFLOAT_0;
+      return;
     }
 
-    orxVECTOR vPos;
+    orxS32 spacing = (childCount - 1) * m_s32Spacing;
+
+    switch (m_eContainerOrientation)
+    {
+      case orxCONTAINER_ORIENTATION::orxCONTAINER_ORIENTATION_HORIZONTAL:
+        vRectDimension.fX += spacing;
+        break;
+      case orxCONTAINER_ORIENTATION::orxCONTAINER_ORIENTATION_VERTICAL:
+        vRectDimension.fY += spacing;
+        break;
+    }
+
+    orxVECTOR vPos, vOffset;
     for (orxOBJECT* pstChild = orxObject_GetOwnedChild(GetOrxObject());
       pstChild != orxNULL;
       pstChild = orxObject_GetOwnedSibling(pstChild))
     {
       orxObject_GetPosition(pstChild, &vPos);
-      orxVector_Sub(&vPos, &vPos, &vHalf);
+      orxObject_GetSize(pstChild, &vSize);
+      GetFinalOffset(vRectDimension, vSize, vOffset);
+
+      orxVector_Add(&vPos, &vPos, &vOffset);
       orxObject_SetPosition(pstChild, &vPos);
     }
-
-    m_bNeedUpdate = orxFALSE;
   }
 }
 
@@ -323,29 +333,8 @@ void orxContainerObject::SetChildOrigin(orxOBJECT* _pstChildObject, orxVECTOR& _
 
   orxFLOAT fZ = vPosition.fZ;
 
-
   /* Gets current origin TOP LEFT */
   orxVector_Sub(&vObjectOrigin, &(stBoundingBox.vPosition), &(stBoundingBox.vPivot));
-
-  /* Is Right Aligned */
-  if (orxFLAG_TEST(m_u32AlingFlags, orxGRAPHIC_KU32_FLAG_ALIGN_RIGHT))
-  {
-    orxVector_Add(&vObjectOrigin, &vObjectOrigin, &(stBoundingBox.vX));
-  }
-  else if (orxFLAG_TEST(m_u32AlingFlags, orxGRAPHIC_KU32_FLAG_ALIGN_LEFT))
-  {
-    /* do nothing */
-  }
-  else
-  {
-
-  }
-
-  /* Is Bottom Aligned */
-  if (orxFLAG_TEST(m_u32AlingFlags, orxGRAPHIC_KU32_FLAG_ALIGN_BOTTOM))
-  {
-    orxVector_Add(&vObjectOrigin, &vObjectOrigin, &(stBoundingBox.vY));
-  }
 
   /* Gets offset to destination */
   orxVector_Sub(&vOffset, &_vChildOrigin, &vObjectOrigin);
@@ -362,7 +351,7 @@ void orxContainerObject::SetChildOrigin(orxOBJECT* _pstChildObject, orxVECTOR& _
 
 void orxContainerObject::FitChildInRect(orxOBJECT* _pstObject, const orxOBOX& p_rect)
 {
-
+  
 }
 
 void orxContainerObject::GetMargin(orxVECTOR& vMargin) const
@@ -398,68 +387,77 @@ void orxContainerObject::GetMargin(orxVECTOR& vMargin) const
   }
 }
 
-void orxContainerObject::GetSpacing(const orxVECTOR& vSize, orxVECTOR& vSpacing) const
+void orxContainerObject::GetAnchorOffset(const orxVECTOR& vSize, orxVECTOR& vAnchorOffset) const
 {
   /* Init */
-  vSpacing = orxVECTOR_0;
+  vAnchorOffset = orxVECTOR_0;
   if (m_eContainerOrientation == orxCONTAINER_ORIENTATION::orxCONTAINER_ORIENTATION_VERTICAL)
   {
-    /* Align top? */
-    if (orxFLAG_TEST(m_u32AlingFlags, orxGRAPHIC_KU32_FLAG_ALIGN_BOTTOM))
-    {
-      /* bottom going up */
-      vSpacing.fX = orxFLOAT_0;
-      vSpacing.fY = -(vSize.fY + m_s32Spacing);
-      vSpacing.fZ = orxFLOAT_0;
-    }
-    else
-    {
-      /* top going down */
-      vSpacing.fX = orxFLOAT_0;
-      vSpacing.fY = vSize.fY + m_s32Spacing;
-      vSpacing.fZ = orxFLOAT_0;
-    }
+    /* top going down */
+    vAnchorOffset.fX = orxFLOAT_0;
+    vAnchorOffset.fY = vSize.fY + m_s32Spacing;
+    vAnchorOffset.fZ = orxFLOAT_0;
   }
-  else if (m_eContainerOrientation == orxCONTAINER_ORIENTATION::orxCONTAINER_ORIENTATION_HORIZONTAL)
+  else
   {
-    /* Align left? */
-    if (orxFLAG_TEST(m_u32AlingFlags, orxGRAPHIC_KU32_FLAG_ALIGN_RIGHT))
-    {
-      /* right going left */
-      vSpacing.fX = -(vSize.fX + m_s32Spacing);
-      vSpacing.fY = orxFLOAT_0;
-      vSpacing.fZ = orxFLOAT_0;
-    }
-    else
-    {
-      /* left going right */
-      vSpacing.fX = vSize.fX + m_s32Spacing;
-      vSpacing.fY = orxFLOAT_0;
-      vSpacing.fZ = orxFLOAT_0;
-    }
-  }
-  else if (m_eContainerOrientation == orxCONTAINER_ORIENTATION::orxCONTAINER_ORIENTATION_BOTH)
-  {
-    /* Align left? */
-    if (orxFLAG_TEST(m_u32AlingFlags, orxGRAPHIC_KU32_FLAG_ALIGN_RIGHT))
-    {
-      /* right going left */
-      vSpacing.fX = -(vSize.fX + m_s32Spacing);
-      vSpacing.fY = -(vSize.fY + m_s32Spacing);
-      vSpacing.fZ = orxFLOAT_0;
-    }
-    else
-    {
-      /* left going right */
-      vSpacing.fX = vSize.fX + m_s32Spacing;
-      vSpacing.fY = vSize.fY + m_s32Spacing;
-      vSpacing.fZ = orxFLOAT_0;
-    }
+    /* left going right */
+    vAnchorOffset.fX = vSize.fX + m_s32Spacing;
+    vAnchorOffset.fY = orxFLOAT_0;
+    vAnchorOffset.fZ = orxFLOAT_0;
   }
 
   orxFLOAT fRotation = GetRotation();
   if (fRotation) {
-    orxVector_2DRotate(&vSpacing, &vSpacing, GetRotation());
+    orxVector_2DRotate(&vAnchorOffset, &vAnchorOffset, GetRotation());
+  }
+}
+
+inline void orxContainerObject::GetFinalOffset(const orxVECTOR& vRectangleSize, const orxVECTOR& vChildSize, orxVECTOR& vOffset) const
+{
+  vOffset = orxVECTOR_0;
+
+  if (m_eContainerOrientation == orxCONTAINER_ORIENTATION::orxCONTAINER_ORIENTATION_VERTICAL) /* top going down */
+  {
+    if (orxFLAG_TEST(m_u32AlingFlags, orxGRAPHIC_KU32_FLAG_ALIGN_RIGHT)) /* right aligned */
+    {
+      vOffset.fX -= vChildSize.fX;
+    }
+    else if (orxFLAG_TEST(m_u32AlingFlags, orxGRAPHIC_KU32_FLAG_ALIGN_LEFT) == false) /* no left/right alignment */
+    {
+      /* centered horizontally */
+      vOffset.fX -= (vChildSize.fX / 2.f);
+    }
+
+    if (orxFLAG_TEST(m_u32AlingFlags, orxGRAPHIC_KU32_FLAG_ALIGN_BOTTOM)) /* bottom aligned */
+    {
+      vOffset.fY -= vRectangleSize.fY;
+    }
+    else if (orxFLAG_TEST(m_u32AlingFlags, orxGRAPHIC_KU32_FLAG_ALIGN_TOP) == false) /* centered */
+    {
+      vOffset.fY -= (vRectangleSize.fY / 2.f);
+    }
+  }
+  else /* left going right */
+  {
+    if (orxFLAG_TEST(m_u32AlingFlags, orxGRAPHIC_KU32_FLAG_ALIGN_RIGHT))
+    {
+      vOffset.fX -= vRectangleSize.fX;
+    }
+    else if (orxFLAG_TEST(m_u32AlingFlags, orxGRAPHIC_KU32_FLAG_ALIGN_LEFT) == false) /* no left/right alignment */
+    {
+      /* centered horizontally */
+      vOffset.fX -= (vRectangleSize.fX / 2.f);
+    }
+
+    if (orxFLAG_TEST(m_u32AlingFlags, orxGRAPHIC_KU32_FLAG_ALIGN_BOTTOM)) /* bottom aligned */
+    {
+      vOffset.fY -= vChildSize.fY;
+    }
+    else if (orxFLAG_TEST(m_u32AlingFlags, orxGRAPHIC_KU32_FLAG_ALIGN_TOP) == false) /* no top/bottom alignment */
+    {
+      /* centered vertically */
+      vOffset.fY = -(vChildSize.fY / 2.f);
+    }
   }
 }
 
